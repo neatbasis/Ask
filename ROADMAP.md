@@ -1,3 +1,5 @@
+> Implementation-ready user stories live in `USER_STORIES.md`.
+
 ## 1) Reversible compression of the instructions (so you can expand back exactly)
 
 ### 1.1 Canonical “instruction pack” format
@@ -242,4 +244,3 @@ If you want, I can also give you a tiny Python script that expands/compresses th
   * question “resolution rate” and “follow-up churn”
 
 **Done when:** dashboards can answer “which questions work best” and “where are we wasting tokens/time”.
-
