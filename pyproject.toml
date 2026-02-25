@@ -1,0 +1,86 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ha-ask"
+version = "0.1.0"
+description = "Ask questions via Home Assistant (Assist Satellite + Mobile actionable notifications), returning Assist-compatible results."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+  { name = "Sebastian Mäki" }
+]
+keywords = ["home-assistant", "assist", "satellite", "notifications", "automation", "semanticng"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Home Automation",
+  "Typing :: Typed",
+]
+
+dependencies = [
+  "homeassistant-api>=4.0.0",
+  "python-dotenv>=1.0.0",
+  "typing-extensions>=4.0.0; python_version < '3.11'",
+]
+
+[project.urls]
+Repository = "https://git.sebastianmaki.fi/sebastian/Ask"  # change to your Gitea URL
+Issues = "https://git.sebastianmaki.fi/sebastian/Ask/issues"
+
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "pytest-cov>=5.0",
+  "ruff>=0.4",
+  "mypy>=1.10",
+  "types-requests",
+  "build>=1.2",
+  "twine>=5.0",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["ha_ask*"]
+exclude = ["tests*", "dist*", "build*", "*.egg-info*"]
+
+# If you include type hints, this makes "ha_ask" PEP 561 compliant when you add py.typed.
+[tool.setuptools.package-data]
+ha_ask = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = []
+
+[tool.mypy]
+python_version = "3.13"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+no_implicit_optional = true
+strict_equality = true
+pretty = true
+# If you want stricter later, flip these on:
+# disallow_incomplete_defs = true
+# disallow_untyped_calls = true
+# disallow_any_generics = true

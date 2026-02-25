@@ -1,0 +1,6 @@
+# --- Core runtime dependencies ---
+homeassistant-api>=4.0.0
+python-dotenv>=1.0.0
+
+# --- Typing / compatibility (safe across Python versions) ---
+typing-extensions>=4.0.0 ; python_version < "3.11"
