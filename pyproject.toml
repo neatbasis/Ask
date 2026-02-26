@@ -36,14 +36,19 @@ Issues = "https://git.sebastianmaki.fi/sebastian/Ask/issues"
 
 
 [project.optional-dependencies]
-dev = [
-  "pytest>=8.0",
-  "pytest-cov>=5.0",
-  "ruff>=0.4",
-  "mypy>=1.10",
+test = [
+  "pytest>=8,<9",
+  "pytest-cov>=5,<6",
   "types-requests",
+  "mypy>=1.9,<2",
+  "ruff>=0.6,<1",
+  "gherkin-official>=30,<31",
   "build>=1.2",
   "twine>=5.0",
+]
+bdd = [
+  "behave>=1.2.6,<2",
+  "deeponto>=0.9,<1",
 ]
 
 [tool.setuptools]

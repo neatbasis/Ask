@@ -28,7 +28,7 @@ For local development, install in editable mode with test dependencies:
 
 ```bash
 python -m pip install --upgrade pip
-python -m pip install -e ".[test]"
+python -m pip install -e ".[test,bdd]"
 ```
 
 If you also want the BDD / Gherkin tooling used by the `features/` step definitions:
