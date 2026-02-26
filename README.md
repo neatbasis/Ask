@@ -13,12 +13,48 @@ The return value is **Assist-compatible**: `id`, `sentence`, and `slots` follow 
 
 ---
 
-# Installation
+## Installation (runtime)
+
+Install the project and its core runtime dependencies:
 
 ```bash
-pip install -r requirements.txt
-# or, if you package it:
-pip install ha_ask
+python -m pip install --upgrade pip
+python -m pip install .
+```
+
+## Installation for editing / development
+
+For local development, install in editable mode with test dependencies:
+
+```bash
+python -m pip install --upgrade pip
+python -m pip install -e ".[test]"
+```
+
+If you also want the BDD / Gherkin tooling used by the `features/` step definitions:
+
+```bash
+python -m pip install -e ".[test,bdd]"
+```
+
+## Running tests
+
+Run the pytest suite:
+
+```bash
+pytest
+```
+
+Run type checks (optional):
+
+```bash
+mypy src tests
+```
+
+Run lint checks (optional):
+
+```bash
+ruff check src tests
 ```
 
 Environment variables (recommended via `.env`):
