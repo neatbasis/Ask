@@ -120,6 +120,20 @@ Each resolved field must have a persisted evidence record (either in draft evide
 
 ---
 
+
+## 6) Demo report artifact (single source for demos + PR descriptions)
+
+After the canonical run, generate one consolidated report object and use it as the only artifact in demos and PR descriptions.
+
+Minimum contract:
+
+- `draft_lifecycle_timeline`: ordered lifecycle checkpoints (`created` → `planned` → `asked` → `applied` → `finalized`) including elapsed timing between stages.
+- `per_question_latency`: each question's ask→answer latency and a normalized contribution to total resolved fields.
+- `field_evidence_provenance`: per-field summary of provenance artifacts (source/channel/session/answer metadata + key list).
+- `retry_and_churn`: aggregate retry count, unresolved/churned fields, and unresolved count snapshots.
+
+Use `ha_ask.build_draft_report(...)` to produce this payload from draft lifecycle timestamps, question events, evidence map, and unresolved field state.
+
 ## Exact success criteria for demo validation
 
 A demo run is considered **PASS** only if all checks below pass.
