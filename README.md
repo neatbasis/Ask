@@ -64,6 +64,47 @@ Environment variables (recommended via `.env`):
 * `HA_SATELLITE_ENTITY_ID` *(optional)* – default satellite entity id
 * `HA_NOTIFY_SERVICE` *(optional)* – notify service name (e.g. `mobile_app_sebastian_mobile`)
 
+## Demonstrate artifact generation (canonical demo)
+
+This is the fastest way to generate the canonical demo artifact described in `docs/demo_scenario.md`.
+
+### Prerequisites
+
+Set the Home Assistant variables already used by this project:
+
+- `HA_API_URL`
+- `HA_API_SECRET`
+- `HA_NOTIFY_SERVICE`
+
+### Run this exact command
+
+```bash
+python -m ha_ask.demo_report --output artifacts/demo_report.json
+```
+
+### Success looks like
+
+You should see a confirmation line such as:
+
+```text
+Wrote canonical demo artifact to artifacts/demo_report.json
+```
+
+The artifact file is written to:
+
+- `artifacts/demo_report.json`
+
+Open the JSON and verify key contract fields exist, for example:
+
+- `draft_lifecycle_timeline`
+- `per_question_latency`
+
+### Troubleshooting
+
+- **Missing env vars**: export `HA_API_URL`, `HA_API_SECRET`, and `HA_NOTIFY_SERVICE` before running demos that call Home Assistant.
+- **Auth/token issues**: regenerate the long-lived token and re-export `HA_API_SECRET` if Home Assistant returns 401/403.
+- **Notify service failures**: verify `HA_NOTIFY_SERVICE` matches a valid `notify.*` service in Home Assistant.
+
 ---
 
 # Core API
