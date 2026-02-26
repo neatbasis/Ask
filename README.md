@@ -57,6 +57,28 @@ Run lint checks (optional):
 ruff check src tests
 ```
 
+## Demo command
+
+Run the canonical demo flow and generate the consolidated artifact:
+
+```bash
+python -m ha_ask.reporting > artifacts/demo_report.json
+```
+
+### Validation contract
+
+See the canonical scenario definition in [`docs/demo_scenario.md`](docs/demo_scenario.md).
+
+The demo validation contract is:
+
+1. The demo must use the canonical scenario inputs and channel expectations from `docs/demo_scenario.md`.
+2. The generated artifact must include the minimum contract fields: `draft_lifecycle_timeline`, `per_question_latency`, `field_evidence_provenance`, and `retry_and_churn`.
+3. Users should be able to quickly inspect artifact structure with:
+
+   ```bash
+   python -m json.tool artifacts/demo_report.json
+   ```
+
 Environment variables (recommended via `.env`):
 
 * `HA_API_URL` – base URL of Home Assistant (e.g. `https://home.example.com`)
