@@ -27,6 +27,7 @@ class Answer:
     id: str
     sentences: Sequence[str]
     title: Optional[str] = None
+    slot_bindings: Optional[Dict[str, Any]] = None
 
 
 Choice = Answer  # optional backwards alias
@@ -36,6 +37,8 @@ Choice = Answer  # optional backwards alias
 class AskSpec:
     question: str
     answers: Optional[Sequence[Answer]] = None
+    expected_slots: Optional[Sequence[str]] = None
+    slot_schema: Optional[Dict[str, Any]] = None
 
     # Mobile behavior
     expect_reply: bool = False
@@ -48,4 +51,3 @@ class AskSpec:
 # Result helpers (channel-agnostic semantics)
 # ---------------------------------------------------------
 # Known semantic errors (cross-channel)
-
