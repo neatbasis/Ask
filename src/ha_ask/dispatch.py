@@ -5,6 +5,7 @@ from .types import AskSpec, AskResult
 from .config import normalize_rest_api_url, derive_ws_url
 from .channels import satellite as satellite_chan
 from .channels import mobile as mobile_chan
+from .session_store import persist_ask_session
 
 Channel = Literal["satellite", "mobile"]
 
@@ -21,13 +22,21 @@ def ask_question(
 
     if channel == "satellite":
         with Client(rest, token) as client:
-            return satellite_chan.ask_question(client, spec, entity_id=satellite_entity_id)
+            result = satellite_chan.ask_question(client, spec, entity_id=satellite_entity_id)
+            persist_ask_session(channel="satellite", spec=spec, result=result)
+            return result
 
     if channel == "mobile":
         if not notify_service:
-            return {"id": None, "sentence": None, "slots": {}, "error": "missing_notify_service"}
+            result = {"id": None, "sentence": None, "slots": {}, "meta": {}, "error": "missing_notify_service"}
+            persist_ask_session(channel="mobile", spec=spec, result=result)
+            return result
         ws_url = derive_ws_url(api_url)
         with Client(rest, token) as client, WebsocketClient(ws_url, token) as ws:
-            return mobile_chan.ask_question(client, ws, spec, notify_service=notify_service)
+            result = mobile_chan.ask_question(client, ws, spec, notify_service=notify_service)
+            persist_ask_session(channel="mobile", spec=spec, result=result)
+            return result
 
-    return {"id": None, "sentence": None, "slots": {}, "error": f"unknown_channel:{channel}"}
+    result = {"id": None, "sentence": None, "slots": {}, "meta": {}, "error": f"unknown_channel:{channel}"}
+    persist_ask_session(channel=channel, spec=spec, result=result)
+    return result
