@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import json
 import re
 from pathlib import Path
@@ -109,13 +110,17 @@ def _response_for(field_path: str, answer_value: str) -> dict[str, Any]:
 def _report_payload_from_flow(flow_result: dict[str, Any]) -> DraftReportInput:
     questions = []
     for item in flow_result["question_lifecycle"]:
+        resolved_fields = []
+        if item["status"] == "applied":
+            resolved_fields = [item["field_path"]]
+
         questions.append(
             {
                 "question_id": item["question_id"],
                 "field_path": item["field_path"],
                 "asked_at": item["asked_at"],
                 "answered_at": item["answered_at"],
-                "resolved_fields": [item["field_path"]] if item["status"] == "applied" else [],
+                "resolved_fields": resolved_fields,
                 "status": item["status"],
                 "retry_count": 0,
             }
@@ -228,6 +233,34 @@ def run_canonical_demo(
         "report": report,
         "report_path": str(output_path),
     }
+
+
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Run the canonical schema flow demo and generate a runtime-backed report artifact."
+    )
+    parser.add_argument(
+        "--docs-path",
+        default="docs/demo_scenario.md",
+        help="Path to the markdown contract that defines the canonical scenario.",
+    )
+    parser.add_argument(
+        "--output",
+        default="artifacts/demo_report.json",
+        help="Path to write the generated artifact JSON.",
+    )
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = _parse_args()
+    result = run_canonical_demo(docs_path=args.docs_path, report_output_path=args.output)
+    print(f"Wrote canonical demo artifact to {result['report_path']}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
 
 
 __all__ = ["load_demo_constants", "run_canonical_demo"]

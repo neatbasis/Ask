@@ -1,7 +1,12 @@
 from __future__ import annotations
+"""Fixture-only report generator for tests and docs snapshots.
+
+Deprecated: for a real end-to-end demo run, use ``python -m ha_ask.canonical_demo``.
+"""
 
 import argparse
 import json
+import warnings
 from pathlib import Path
 from typing import Any, Dict
 
@@ -83,6 +88,12 @@ def _parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
+    warnings.warn(
+        "ha_ask.demo_report uses a static fixture payload and is deprecated for runtime demos. "
+        "Use `python -m ha_ask.canonical_demo` to execute the real canonical flow.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     args = _parse_args()
     report: Dict[str, Any] = build_draft_report(_CANONICAL_PAYLOAD)
 
