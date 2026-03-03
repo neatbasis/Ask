@@ -1,6 +1,11 @@
 from __future__ import annotations
 
-from ha_ask.apply import apply_answer_to_field, parse_timezone_reply
+from ha_ask.apply import (
+    apply_answer_to_field,
+    map_consent_button_id,
+    map_contact_method_button_id,
+    parse_timezone_reply,
+)
 
 
 def test_apply_answer_to_field_uses_deterministic_canonical_mappings() -> None:
@@ -64,3 +69,15 @@ def test_timezone_reply_parser_and_application_result_payload() -> None:
         "parsed_value": "America/New_York",
         "parse_status": "success",
     }
+
+
+def test_canonical_button_id_mappers_return_machine_readable_status() -> None:
+    assert map_consent_button_id("consent_yes") == {"parse_status": "success", "normalized_value": True}
+    assert map_consent_button_id("consent_unknown") == {"parse_status": "invalid", "normalized_value": None}
+    assert map_contact_method_button_id("contact_phone") == {"parse_status": "success", "normalized_value": "phone"}
+    assert map_contact_method_button_id(None) == {"parse_status": "missing", "normalized_value": None}
+
+
+def test_timezone_parser_normalizes_case_to_canonical_iana() -> None:
+    parsed = parse_timezone_reply("america/new_york")
+    assert parsed == {"parse_status": "success", "parsed_value": "America/New_York"}
