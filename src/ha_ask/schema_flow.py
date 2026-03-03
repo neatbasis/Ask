@@ -6,12 +6,15 @@ from datetime import datetime, timezone
 from typing import Any, Literal, TypedDict
 
 from .evidence import build_choice_evidence, build_reply_evidence
+from .dispatch import ask_question
 from .finalize import FinalizeRationale, finalize_schema
 from .planning import ProbeCandidate, plan_questions
+from .reporting import DraftReportInput, build_draft_report
 from .storage import get_storage_backend
 from .types import Answer, AskResult, AskSpec, EvidenceMap
 
 ScenarioName = Literal["person_profile_v1"]
+DraftStage = Literal["created", "planned", "asked", "applied", "finalized"]
 
 
 class QuestionLifecycle(TypedDict):
@@ -38,7 +41,20 @@ class SchemaFlowResult(TypedDict):
     errors: list[dict[str, Any]]
 
 
+class ScenarioRunResult(TypedDict):
+    flow_result: SchemaFlowResult
+    report: dict[str, Any]
+
+
 AskCallable = Callable[..., AskResult]
+
+_STAGE_TRANSITIONS: dict[DraftStage, DraftStage | None] = {
+    "created": "planned",
+    "planned": "asked",
+    "asked": "applied",
+    "applied": "finalized",
+    "finalized": None,
+}
 
 
 def _utc_now_iso() -> str:
@@ -172,6 +188,32 @@ def _collect_slots(result: Mapping[str, Any]) -> dict[str, Any]:
     return {k: v for k, v in slots.items()}
 
 
+def _next_stage(stage: DraftStage) -> DraftStage | None:
+    return _STAGE_TRANSITIONS[stage]
+
+
+def _report_payload_from_flow(flow_result: SchemaFlowResult) -> DraftReportInput:
+    questions = []
+    for item in flow_result["question_lifecycle"]:
+        questions.append(
+            {
+                "question_id": item["question_id"],
+                "field_path": item["field_path"],
+                "asked_at": item["asked_at"],
+                "answered_at": item["answered_at"],
+                "resolved_fields": [item["field_path"]] if item["status"] == "applied" else [],
+                "status": item["status"],
+                "retry_count": 0,
+            }
+        )
+    return {
+        "lifecycle": flow_result["draft_lifecycle"],
+        "questions": questions,
+        "evidence_map": flow_result["evidence_map"],
+        "unresolved_fields": flow_result["unresolved_fields"],
+    }
+
+
 def run_schema_flow(
     *,
     schema_name: ScenarioName,
@@ -179,7 +221,7 @@ def run_schema_flow(
     channel: Literal["mobile", "satellite"],
     api_url: str,
     token: str,
-    ask_callable: AskCallable,
+    ask_callable: AskCallable = ask_question,
     notify_service: str | None = None,
     satellite_entity_id: str | None = None,
 ) -> SchemaFlowResult:
@@ -211,136 +253,178 @@ def run_schema_flow(
                 "value": draft_state[field],
             }
 
-    unresolved_before_plan = [field for field in required_fields if draft_state.get(field) is None]
-    planned_questions = plan_questions(
-        [candidate for candidate in candidates if candidate.field_path in unresolved_before_plan]
-    )
-    draft_lifecycle["planned_at"] = _utc_now_iso()
-    storage.record_draft_transition(
-        draft_id=draft_id,
-        state="planned",
-        at=draft_lifecycle["planned_at"],
-    )
-
+    stage: DraftStage = "created"
+    planned_questions: list[ProbeCandidate] = []
+    interactions: list[dict[str, Any]] = []
     question_lifecycle: list[QuestionLifecycle] = []
+    finalize_result: dict[str, Any] = {"ok": False, "finalized": None, "rationale": [], "errors": []}
 
-    for planned in planned_questions:
-        ask_spec = specs_by_field[planned.field_path]
-        status_history: list[dict[str, str]] = []
+    while stage is not None:
+        if stage == "created":
+            stage = _next_stage(stage)
+            continue
 
-        planned_at = _utc_now_iso()
-        status_history.append({"status": "planned", "at": planned_at})
-
-        asked_at = _utc_now_iso()
-        status_history.append({"status": "asked", "at": asked_at})
-
-        ask_kwargs: dict[str, Any] = {
-            "channel": channel,
-            "spec": ask_spec,
-            "api_url": api_url,
-            "token": token,
-        }
-        if notify_service:
-            ask_kwargs["notify_service"] = notify_service
-        if satellite_entity_id:
-            ask_kwargs["satellite_entity_id"] = satellite_entity_id
-
-        result = ask_callable(**ask_kwargs)
-
-        answered_at = _utc_now_iso()
-        status_history.append({"status": "answered", "at": answered_at})
-
-        resolved_fields: list[str] = []
-        slots = _collect_slots(result)
-        for field_path, value in slots.items():
-            draft_state[field_path] = value
-            resolved_fields.append(field_path)
-
-        if planned.field_path == "timezone" and planned.field_path not in slots:
-            raw_reply = _extract_reply_text(result)
-            if raw_reply:
-                draft_state["timezone"] = _normalize_timezone(raw_reply)
-                resolved_fields.append("timezone")
-
-        applied_at = _utc_now_iso()
-        status_history.append({"status": "applied", "at": applied_at})
-
-        meta = result.get("meta") if isinstance(result.get("meta"), Mapping) else {}
-        ask_session_id = str(meta.get("ask_session_id", ""))
-
-        if planned.field_path == "timezone":
-            raw_reply = _extract_reply_text(result)
-            evidence_map[planned.field_path] = build_reply_evidence(
-                field_path=planned.field_path,
-                channel=channel,
-                question_text=ask_spec.question,
-                raw_reply=raw_reply,
-                parsed_value=draft_state.get("timezone"),
-                parse_status="success" if draft_state.get("timezone") else "failed",
-                ask_session_id=ask_session_id,
-                asked_at=asked_at,
-                answered_at=answered_at,
+        if stage == "planned":
+            unresolved_before_plan = [field for field in required_fields if draft_state.get(field) is None]
+            planned_questions = plan_questions(
+                [candidate for candidate in candidates if candidate.field_path in unresolved_before_plan]
             )
-        else:
-            matched_id = result.get("id") if isinstance(result.get("id"), str) else None
-            answer_text = None
-            if matched_id:
-                for answer in ask_spec.answers or ():
-                    if answer.id == matched_id:
-                        answer_text = answer.title
-                        break
-            evidence_map[planned.field_path] = build_choice_evidence(
-                field_path=planned.field_path,
-                channel=channel,
-                question_text=ask_spec.question,
-                answer_id=matched_id,
-                answer_text=answer_text,
-                slot_binding={
-                    field_name: draft_state[field_name]
-                    for field_name in resolved_fields
-                    if field_name == planned.field_path
-                },
-                ask_session_id=ask_session_id,
-                asked_at=asked_at,
-                answered_at=answered_at,
+            draft_lifecycle["planned_at"] = _utc_now_iso()
+            storage.record_draft_transition(
+                draft_id=draft_id,
+                state="planned",
+                at=draft_lifecycle["planned_at"],
             )
+            stage = _next_stage(stage)
+            continue
 
-        question_lifecycle.append(
-            {
-                "question_id": planned.probe_id,
-                "field_path": planned.field_path,
-                "status": "applied" if resolved_fields else "unresolved",
-                "status_history": status_history,
-                "planned_at": planned_at,
-                "asked_at": asked_at,
-                "answered_at": answered_at,
-                "applied_at": applied_at,
-            }
-        )
+        if stage == "asked":
+            for planned in planned_questions:
+                ask_spec = specs_by_field[planned.field_path]
+                status_history: list[dict[str, str]] = []
 
-    first_asked_at = question_lifecycle[0]["asked_at"] if question_lifecycle else _utc_now_iso()
-    draft_lifecycle["asked_at"] = first_asked_at
-    storage.record_draft_transition(draft_id=draft_id, state="asked", at=first_asked_at)
-    draft_lifecycle["applied_at"] = _utc_now_iso()
-    storage.record_draft_transition(
-        draft_id=draft_id,
-        state="applied",
-        at=draft_lifecycle["applied_at"],
-    )
+                planned_at = _utc_now_iso()
+                status_history.append({"status": "planned", "at": planned_at})
+
+                asked_at = _utc_now_iso()
+                status_history.append({"status": "asked", "at": asked_at})
+
+                ask_kwargs: dict[str, Any] = {
+                    "channel": channel,
+                    "spec": ask_spec,
+                    "api_url": api_url,
+                    "token": token,
+                }
+                if notify_service:
+                    ask_kwargs["notify_service"] = notify_service
+                if satellite_entity_id:
+                    ask_kwargs["satellite_entity_id"] = satellite_entity_id
+
+                result = ask_callable(**ask_kwargs)
+
+                answered_at = _utc_now_iso()
+                status_history.append({"status": "answered", "at": answered_at})
+
+                interactions.append(
+                    {
+                        "planned": planned,
+                        "ask_spec": ask_spec,
+                        "result": result,
+                        "planned_at": planned_at,
+                        "asked_at": asked_at,
+                        "answered_at": answered_at,
+                        "status_history": status_history,
+                    }
+                )
+
+            first_asked_at = interactions[0]["asked_at"] if interactions else _utc_now_iso()
+            draft_lifecycle["asked_at"] = first_asked_at
+            storage.record_draft_transition(draft_id=draft_id, state="asked", at=first_asked_at)
+            stage = _next_stage(stage)
+            continue
+
+        if stage == "applied":
+            for interaction in interactions:
+                planned = interaction["planned"]
+                ask_spec = interaction["ask_spec"]
+                result = interaction["result"]
+                status_history = interaction["status_history"]
+                asked_at = interaction["asked_at"]
+                answered_at = interaction["answered_at"]
+
+                resolved_fields: list[str] = []
+                slots = _collect_slots(result)
+                for field_path, value in slots.items():
+                    draft_state[field_path] = value
+                    resolved_fields.append(field_path)
+
+                if planned.field_path == "timezone" and planned.field_path not in slots:
+                    raw_reply = _extract_reply_text(result)
+                    if raw_reply:
+                        draft_state["timezone"] = _normalize_timezone(raw_reply)
+                        resolved_fields.append("timezone")
+
+                applied_at = _utc_now_iso()
+                status_history.append({"status": "applied", "at": applied_at})
+
+                meta = result.get("meta") if isinstance(result.get("meta"), Mapping) else {}
+                ask_session_id = str(meta.get("ask_session_id", ""))
+
+                if planned.field_path == "timezone":
+                    raw_reply = _extract_reply_text(result)
+                    evidence_map[planned.field_path] = build_reply_evidence(
+                        field_path=planned.field_path,
+                        channel=channel,
+                        question_text=ask_spec.question,
+                        raw_reply=raw_reply,
+                        parsed_value=draft_state.get("timezone"),
+                        parse_status="success" if draft_state.get("timezone") else "failed",
+                        ask_session_id=ask_session_id,
+                        asked_at=asked_at,
+                        answered_at=answered_at,
+                    )
+                else:
+                    matched_id = result.get("id") if isinstance(result.get("id"), str) else None
+                    answer_text = None
+                    if matched_id:
+                        for answer in ask_spec.answers or ():
+                            if answer.id == matched_id:
+                                answer_text = answer.title
+                                break
+                    evidence_map[planned.field_path] = build_choice_evidence(
+                        field_path=planned.field_path,
+                        channel=channel,
+                        question_text=ask_spec.question,
+                        answer_id=matched_id,
+                        answer_text=answer_text,
+                        slot_binding={
+                            field_name: draft_state[field_name]
+                            for field_name in resolved_fields
+                            if field_name == planned.field_path
+                        },
+                        ask_session_id=ask_session_id,
+                        asked_at=asked_at,
+                        answered_at=answered_at,
+                    )
+
+                question_lifecycle.append(
+                    {
+                        "question_id": planned.probe_id,
+                        "field_path": planned.field_path,
+                        "status": "applied" if resolved_fields else "unresolved",
+                        "status_history": status_history,
+                        "planned_at": interaction["planned_at"],
+                        "asked_at": asked_at,
+                        "answered_at": answered_at,
+                        "applied_at": applied_at,
+                    }
+                )
+
+            draft_lifecycle["applied_at"] = _utc_now_iso()
+            storage.record_draft_transition(
+                draft_id=draft_id,
+                state="applied",
+                at=draft_lifecycle["applied_at"],
+            )
+            stage = _next_stage(stage)
+            continue
+
+        if stage == "finalized":
+            finalize_result = finalize_schema(
+                schema_object=draft_state,
+                evidence_map=evidence_map,
+                required_fields=required_fields,
+            )
+            draft_lifecycle["finalized_at"] = _utc_now_iso()
+            storage.record_draft_transition(
+                draft_id=draft_id,
+                state="finalized",
+                at=draft_lifecycle["finalized_at"],
+            )
+            stage = _next_stage(stage)
+            continue
 
     unresolved_fields = [field for field in required_fields if draft_state.get(field) is None]
-
-    finalize_result = finalize_schema(
-        schema_object=draft_state,
-        evidence_map=evidence_map,
-        required_fields=required_fields,
-    )
-    draft_lifecycle["finalized_at"] = _utc_now_iso()
-    storage.record_draft_transition(
-        draft_id=draft_id,
-        state="finalized",
-        at=draft_lifecycle["finalized_at"],
-    )
 
     final_object = None
     if finalize_result["ok"] and finalize_result["finalized"] is not None:
@@ -368,4 +452,16 @@ def run_schema_flow(
     }
 
 
-__all__ = ["QuestionLifecycle", "SchemaFlowResult", "run_schema_flow"]
+def run_schema_flow_with_report(**kwargs: Any) -> ScenarioRunResult:
+    flow_result = run_schema_flow(**kwargs)
+    report = build_draft_report(_report_payload_from_flow(flow_result))
+    return {"flow_result": flow_result, "report": report}
+
+
+__all__ = [
+    "QuestionLifecycle",
+    "SchemaFlowResult",
+    "ScenarioRunResult",
+    "run_schema_flow",
+    "run_schema_flow_with_report",
+]
