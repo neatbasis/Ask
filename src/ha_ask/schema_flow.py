@@ -8,6 +8,7 @@ from typing import Any, Literal, TypedDict
 from .evidence import build_choice_evidence, build_reply_evidence
 from .finalize import FinalizeRationale, finalize_schema
 from .planning import ProbeCandidate, plan_questions
+from .storage import get_storage_backend
 from .types import Answer, AskResult, AskSpec, EvidenceMap
 
 ScenarioName = Literal["person_profile_v1"]
@@ -183,12 +184,19 @@ def run_schema_flow(
     satellite_entity_id: str | None = None,
 ) -> SchemaFlowResult:
     required_fields, candidates, specs_by_field = _supported_scenario(schema_name)
+    storage = get_storage_backend()
 
     draft_state: dict[str, Any] = {field: partial_input.get(field) for field in required_fields}
     evidence_map: EvidenceMap = {}
 
     created_at = _utc_now_iso()
     draft_lifecycle: dict[str, str] = {"created_at": created_at}
+    draft_id = storage.begin_schema_draft(
+        schema_name=schema_name,
+        partial_input=partial_input,
+        required_fields=required_fields,
+        created_at=created_at,
+    )
 
     for field in required_fields:
         if draft_state.get(field) is not None:
@@ -208,6 +216,11 @@ def run_schema_flow(
         [candidate for candidate in candidates if candidate.field_path in unresolved_before_plan]
     )
     draft_lifecycle["planned_at"] = _utc_now_iso()
+    storage.record_draft_transition(
+        draft_id=draft_id,
+        state="planned",
+        at=draft_lifecycle["planned_at"],
+    )
 
     question_lifecycle: list[QuestionLifecycle] = []
 
@@ -307,7 +320,13 @@ def run_schema_flow(
 
     first_asked_at = question_lifecycle[0]["asked_at"] if question_lifecycle else _utc_now_iso()
     draft_lifecycle["asked_at"] = first_asked_at
+    storage.record_draft_transition(draft_id=draft_id, state="asked", at=first_asked_at)
     draft_lifecycle["applied_at"] = _utc_now_iso()
+    storage.record_draft_transition(
+        draft_id=draft_id,
+        state="applied",
+        at=draft_lifecycle["applied_at"],
+    )
 
     unresolved_fields = [field for field in required_fields if draft_state.get(field) is None]
 
@@ -317,10 +336,23 @@ def run_schema_flow(
         required_fields=required_fields,
     )
     draft_lifecycle["finalized_at"] = _utc_now_iso()
+    storage.record_draft_transition(
+        draft_id=draft_id,
+        state="finalized",
+        at=draft_lifecycle["finalized_at"],
+    )
 
     final_object = None
     if finalize_result["ok"] and finalize_result["finalized"] is not None:
         final_object = deepcopy(finalize_result["finalized"]["schema_object"])
+
+    for field_path, evidence in evidence_map.items():
+        storage.persist_evidence(draft_id=draft_id, field_path=field_path, evidence=evidence)
+    storage.persist_finalized_schema(
+        draft_id=draft_id,
+        final_object=final_object,
+        rationale=finalize_result["rationale"],
+    )
 
     return {
         "schema_name": schema_name,
