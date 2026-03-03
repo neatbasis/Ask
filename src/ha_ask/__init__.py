@@ -11,3 +11,5 @@ from .planning import PlannedQuestion, ProbeCandidate, plan_questions
 from .finalize import finalize_schema
 
 from .reporting import build_draft_report
+
+from .schema_flow import run_schema_flow, SchemaFlowResult
