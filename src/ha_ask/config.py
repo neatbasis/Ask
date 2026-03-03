@@ -1,19 +1,9 @@
+from __future__ import annotations
+
 import os
-from dotenv import load_dotenv
+from dataclasses import dataclass
+from typing import Any, Mapping
 
-def load_config() -> dict:
-    load_dotenv()
-    api_url = os.environ.get("HA_API_URL")
-    token = os.environ.get("HA_API_SECRET")
-    notify_service = os.environ.get("HA_NOTIFY_SERVICE")  # optional
-    satellite_entity_id = os.environ.get("HA_SATELLITE_ENTITY_ID")  # optional
-
-    return {
-        "api_url": api_url,
-        "token": token,
-        "notify_service": notify_service,
-        "satellite_entity_id": satellite_entity_id,
-    }
 
 def normalize_rest_api_url(url: str) -> str:
     url = url.rstrip("/")
@@ -21,12 +11,61 @@ def normalize_rest_api_url(url: str) -> str:
         url += "/api"
     return url + "/"
 
+
 def derive_ws_url(rest_api_url: str) -> str:
     rest = normalize_rest_api_url(rest_api_url)
     if rest.startswith("https://"):
-        ws_base = "wss://" + rest[len("https://"):]
+        ws_base = "wss://" + rest[len("https://") :]
     elif rest.startswith("http://"):
-        ws_base = "ws://" + rest[len("http://"):]
+        ws_base = "ws://" + rest[len("http://") :]
     else:
         ws_base = "ws://" + rest
     return ws_base.rstrip("/") + "/websocket"
+
+
+@dataclass
+class Config:
+    api_url: str | None
+    token: str | None
+    notify_service: str | None = None
+    satellite_entity_id: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.api_url:
+            self.api_url = normalize_rest_api_url(self.api_url)
+
+    @classmethod
+    def from_env(cls, environ: Mapping[str, str] | None = None) -> "Config":
+        env = environ if environ is not None else os.environ
+        return cls(
+            api_url=env.get("HA_API_URL"),
+            token=env.get("HA_API_SECRET"),
+            notify_service=env.get("HA_NOTIFY_SERVICE"),
+            satellite_entity_id=env.get("HA_SATELLITE_ENTITY_ID"),
+        )
+
+    @classmethod
+    def from_mapping(cls, data: Mapping[str, Any]) -> "Config":
+        return cls(
+            api_url=data.get("api_url"),
+            token=data.get("token"),
+            notify_service=data.get("notify_service"),
+            satellite_entity_id=data.get("satellite_entity_id"),
+        )
+
+    def to_dict(self) -> dict[str, str | None]:
+        return {
+            "api_url": self.api_url,
+            "token": self.token,
+            "notify_service": self.notify_service,
+            "satellite_entity_id": self.satellite_entity_id,
+        }
+
+
+def load_config() -> dict[str, str | None]:
+    """Deprecated compatibility wrapper; prefer `Config.from_env()`.
+
+    This function is kept during migration from free-function config loading.
+    """
+
+    return Config.from_env().to_dict()

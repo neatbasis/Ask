@@ -1,4 +1,4 @@
-from ha_ask.config import load_config, normalize_rest_api_url
+from ha_ask.config import Config
 from homeassistant_api import Client
 from homeassistant_api.processing import Processing, process_json
 
@@ -6,10 +6,10 @@ Processing.register_processor("application/json", lambda r: process_json(r))
 Processing.register_processor("text/html", lambda r: r.text)
 Processing.register_processor("text/plain", lambda r: r.text)
 
-cfg = load_config()
-url = normalize_rest_api_url(cfg["api_url"])
-tok = cfg["token"]
-ent = cfg.get("satellite_entity_id") or "assist_satellite.esphome_mycroft_assist_satellite"
+cfg = Config.from_env()
+url = cfg.api_url
+tok = cfg.token
+ent = cfg.satellite_entity_id or "assist_satellite.esphome_mycroft_assist_satellite"
 
 answers = [
     {"id":"yes","sentences":["yeah","of course"]},
