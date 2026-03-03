@@ -176,11 +176,39 @@ def run_canonical_demo(
     if flow_result["final_object"] != constants["expected_final_json"]:
         raise AssertionError("final_object_mismatch")
 
+    required_keys_by_mode = {
+        "choice": [
+            "field_path",
+            "source",
+            "channel",
+            "question_text",
+            "answer_id",
+            "answer_text",
+            "slot_binding",
+            "ask_session_id",
+            "asked_at",
+            "answered_at",
+        ],
+        "reply": [
+            "field_path",
+            "source",
+            "channel",
+            "question_text",
+            "raw_reply",
+            "parsed_value",
+            "parse_status",
+            "ask_session_id",
+            "asked_at",
+            "answered_at",
+        ],
+    }
+
     evidence = flow_result["evidence_map"]
+    mode_by_field = {item["field_path"]: item["mode"] for item in constants["planned_questions"]}
     for field_path in expected_order:
         entry = evidence[field_path]
-        for required_key in ["question_text", "asked_at", "answered_at", "ask_session_id"]:
-            if not entry.get(required_key):
+        for required_key in required_keys_by_mode[mode_by_field[field_path]]:
+            if required_key not in entry:
                 raise AssertionError(f"missing_evidence:{field_path}:{required_key}")
 
     if not evidence["consent_to_contact"].get("answer_id") == "consent_yes":

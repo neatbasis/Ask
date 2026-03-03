@@ -49,3 +49,41 @@ def test_run_canonical_demo_writes_report_and_validates_expected_final_json(tmp_
     assert evidence["preferred_contact_method"]["answer_id"] == "contact_email"
     assert evidence["preferred_contact_method"]["answer_text"] == "Email"
     assert evidence["timezone"]["raw_reply"] == "America/Los_Angeles"
+
+
+def test_run_canonical_demo_evidence_contract_contains_required_keys_by_mode() -> None:
+    result = run_canonical_demo()
+    constants = load_demo_constants("docs/demo_scenario.md")
+
+    required_keys_by_mode = {
+        "choice": {
+            "field_path",
+            "source",
+            "channel",
+            "question_text",
+            "answer_id",
+            "answer_text",
+            "slot_binding",
+            "ask_session_id",
+            "asked_at",
+            "answered_at",
+        },
+        "reply": {
+            "field_path",
+            "source",
+            "channel",
+            "question_text",
+            "raw_reply",
+            "parsed_value",
+            "parse_status",
+            "ask_session_id",
+            "asked_at",
+            "answered_at",
+        },
+    }
+
+    evidence = result["flow_result"]["evidence_map"]
+    for planned in constants["planned_questions"]:
+        field_path = planned["field_path"]
+        mode = planned["mode"]
+        assert required_keys_by_mode[mode].issubset(set(evidence[field_path].keys()))

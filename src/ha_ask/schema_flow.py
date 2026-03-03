@@ -5,9 +5,10 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from typing import Any, Literal, TypedDict
 
+from .evidence import build_choice_evidence, build_reply_evidence
 from .finalize import FinalizeRationale, finalize_schema
 from .planning import ProbeCandidate, plan_questions
-from .types import Answer, AskResult, AskSpec
+from .types import Answer, AskResult, AskSpec, EvidenceMap
 
 ScenarioName = Literal["person_profile_v1"]
 
@@ -28,7 +29,7 @@ class SchemaFlowResult(TypedDict):
     draft_state: dict[str, Any]
     required_fields: list[str]
     unresolved_fields: list[str]
-    evidence_map: dict[str, dict[str, Any]]
+    evidence_map: EvidenceMap
     question_lifecycle: list[QuestionLifecycle]
     draft_lifecycle: dict[str, str]
     final_object: dict[str, Any] | None
@@ -184,7 +185,7 @@ def run_schema_flow(
     required_fields, candidates, specs_by_field = _supported_scenario(schema_name)
 
     draft_state: dict[str, Any] = {field: partial_input.get(field) for field in required_fields}
-    evidence_map: dict[str, dict[str, Any]] = {}
+    evidence_map: EvidenceMap = {}
 
     created_at = _utc_now_iso()
     draft_lifecycle: dict[str, str] = {"created_at": created_at}
@@ -254,24 +255,18 @@ def run_schema_flow(
         meta = result.get("meta") if isinstance(result.get("meta"), Mapping) else {}
         ask_session_id = str(meta.get("ask_session_id", ""))
 
-        evidence: dict[str, Any] = {
-            "field_path": planned.field_path,
-            "source": "ask_session",
-            "channel": channel,
-            "question_text": ask_spec.question,
-            "ask_session_id": ask_session_id,
-            "asked_at": asked_at,
-            "answered_at": answered_at,
-        }
-
         if planned.field_path == "timezone":
             raw_reply = _extract_reply_text(result)
-            evidence.update(
-                {
-                    "raw_reply": raw_reply,
-                    "parsed_value": draft_state.get("timezone"),
-                    "parse_status": "success" if draft_state.get("timezone") else "failed",
-                }
+            evidence_map[planned.field_path] = build_reply_evidence(
+                field_path=planned.field_path,
+                channel=channel,
+                question_text=ask_spec.question,
+                raw_reply=raw_reply,
+                parsed_value=draft_state.get("timezone"),
+                parse_status="success" if draft_state.get("timezone") else "failed",
+                ask_session_id=ask_session_id,
+                asked_at=asked_at,
+                answered_at=answered_at,
             )
         else:
             matched_id = result.get("id") if isinstance(result.get("id"), str) else None
@@ -281,19 +276,21 @@ def run_schema_flow(
                     if answer.id == matched_id:
                         answer_text = answer.title
                         break
-            evidence.update(
-                {
-                    "answer_id": matched_id,
-                    "answer_text": answer_text,
-                    "slot_binding": {
-                        field_name: draft_state[field_name]
-                        for field_name in resolved_fields
-                        if field_name == planned.field_path
-                    },
-                }
+            evidence_map[planned.field_path] = build_choice_evidence(
+                field_path=planned.field_path,
+                channel=channel,
+                question_text=ask_spec.question,
+                answer_id=matched_id,
+                answer_text=answer_text,
+                slot_binding={
+                    field_name: draft_state[field_name]
+                    for field_name in resolved_fields
+                    if field_name == planned.field_path
+                },
+                ask_session_id=ask_session_id,
+                asked_at=asked_at,
+                answered_at=answered_at,
             )
-
-        evidence_map[planned.field_path] = evidence
 
         question_lifecycle.append(
             {
