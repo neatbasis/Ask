@@ -5,6 +5,7 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from typing import Any, Literal, TypedDict
 
+from .apply import apply_answer_to_field
 from .dispatch import ask_question
 from .evidence import build_choice_evidence, build_reply_evidence
 from .finalize import FinalizeRationale, finalize_schema
@@ -162,31 +163,6 @@ def _supported_scenario(
     return required_fields, candidates, ask_specs
 
 
-def _normalize_timezone(raw_value: str) -> str:
-    return raw_value.strip()
-
-
-def _extract_reply_text(result: Mapping[str, Any]) -> str:
-    sentence = result.get("sentence")
-    if isinstance(sentence, str) and sentence.strip():
-        return sentence
-
-    meta = result.get("meta")
-    if isinstance(meta, Mapping):
-        replies = meta.get("replies")
-        if isinstance(replies, list):
-            for item in reversed(replies):
-                if isinstance(item, str) and item.strip():
-                    return item
-    return ""
-
-
-def _collect_slots(result: Mapping[str, Any]) -> dict[str, Any]:
-    slots = result.get("slots")
-    if not isinstance(slots, Mapping):
-        return {}
-    return {k: v for k, v in slots.items()}
-
 
 def _next_stage(stage: DraftStage) -> DraftStage | None:
     return _STAGE_TRANSITIONS[stage]
@@ -343,17 +319,14 @@ def run_schema_flow(
                 asked_at = interaction["asked_at"]
                 answered_at = interaction["answered_at"]
 
-                resolved_fields: list[str] = []
-                slots = _collect_slots(result)
-                for field_path, value in slots.items():
-                    draft_state[field_path] = value
-                    resolved_fields.append(field_path)
-
-                if planned.field_path == "timezone" and planned.field_path not in slots:
-                    raw_reply = _extract_reply_text(result)
-                    if raw_reply:
-                        draft_state["timezone"] = _normalize_timezone(raw_reply)
-                        resolved_fields.append("timezone")
+                apply_result = apply_answer_to_field(
+                    planned.field_path,
+                    result,
+                    mapping_config=None,
+                )
+                resolved_fields = list(apply_result["resolved_fields"])
+                for field_name, normalized_value in apply_result["applied_values"].items():
+                    draft_state[field_name] = normalized_value
 
                 applied_at = _utc_now_iso()
                 status_history.append({"status": "applied", "at": applied_at})
@@ -362,14 +335,14 @@ def run_schema_flow(
                 ask_session_id = str(meta.get("ask_session_id", ""))
 
                 if planned.field_path == "timezone":
-                    raw_reply = _extract_reply_text(result)
+                    timezone_fragment = apply_result["evidence_fragments"][planned.field_path]
                     evidence_map[planned.field_path] = build_reply_evidence(
                         field_path=planned.field_path,
                         channel=channel,
                         question_text=ask_spec.question,
-                        raw_reply=raw_reply,
-                        parsed_value=draft_state.get("timezone"),
-                        parse_status="success" if draft_state.get("timezone") else "failed",
+                        raw_reply=str(timezone_fragment.get("raw_reply", "")),
+                        parsed_value=timezone_fragment.get("parsed_value"),
+                        parse_status=str(apply_result["parse_status"]),
                         ask_session_id=ask_session_id,
                         asked_at=asked_at,
                         answered_at=answered_at,
@@ -391,7 +364,7 @@ def run_schema_flow(
                         slot_binding={
                             field_name: draft_state[field_name]
                             for field_name in resolved_fields
-                            if field_name == planned.field_path
+                            if field_name in draft_state
                         },
                         ask_session_id=ask_session_id,
                         asked_at=asked_at,

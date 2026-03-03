@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import Any, Literal, TypedDict
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError, available_timezones
 
 
 ParseStatus = Literal["not_applicable", "success", "invalid", "missing"]
@@ -11,6 +11,11 @@ ParseStatus = Literal["not_applicable", "success", "invalid", "missing"]
 class TimezoneParseResult(TypedDict):
     parse_status: Literal["success", "invalid", "missing"]
     parsed_value: str | None
+
+
+class CanonicalMappingResult(TypedDict):
+    parse_status: Literal["success", "invalid", "missing"]
+    normalized_value: Any
 
 
 class FieldApplicationResult(TypedDict):
@@ -60,12 +65,45 @@ def parse_timezone_reply(reply_text: str | None) -> TimezoneParseResult:
         return {"parse_status": "missing", "parsed_value": None}
 
     candidate = reply_text.strip()
+    canonical_candidate = _canonicalize_iana_timezone(candidate)
+    if canonical_candidate is None:
+        return {"parse_status": "invalid", "parsed_value": None}
+
     try:
-        ZoneInfo(candidate)
+        ZoneInfo(canonical_candidate)
     except ZoneInfoNotFoundError:
         return {"parse_status": "invalid", "parsed_value": None}
 
-    return {"parse_status": "success", "parsed_value": candidate}
+    return {"parse_status": "success", "parsed_value": canonical_candidate}
+
+
+def _canonicalize_iana_timezone(candidate: str) -> str | None:
+    if candidate in available_timezones():
+        return candidate
+
+    lower_candidate = candidate.lower()
+    for timezone_name in available_timezones():
+        if timezone_name.lower() == lower_candidate:
+            return timezone_name
+    return None
+
+
+def map_consent_button_id(answer_id: str | None) -> CanonicalMappingResult:
+    if answer_id is None:
+        return {"parse_status": "missing", "normalized_value": None}
+    normalized = _DEFAULT_CANONICAL_MAPPINGS["consent_to_contact"].get(answer_id)
+    if normalized is None:
+        return {"parse_status": "invalid", "normalized_value": None}
+    return {"parse_status": "success", "normalized_value": normalized}
+
+
+def map_contact_method_button_id(answer_id: str | None) -> CanonicalMappingResult:
+    if answer_id is None:
+        return {"parse_status": "missing", "normalized_value": None}
+    normalized = _DEFAULT_CANONICAL_MAPPINGS["preferred_contact_method"].get(answer_id)
+    if normalized is None:
+        return {"parse_status": "invalid", "normalized_value": None}
+    return {"parse_status": "success", "normalized_value": normalized}
 
 
 def _canonical_mappings(mapping_config: Mapping[str, Any] | None) -> dict[str, dict[str, Any]]:
@@ -113,6 +151,44 @@ def apply_answer_to_field(
             "evidence_fragments": {field_path: evidence},
         }
 
+    if field_path == "consent_to_contact":
+        mapping_result = map_consent_button_id(answer_id)
+        if mapping_result["parse_status"] == "success":
+            resolved_fields.append(field_path)
+            applied_values[field_path] = mapping_result["normalized_value"]
+        evidence = {
+            "field_path": field_path,
+            "answer_id": answer_id,
+            "normalized_value": mapping_result["normalized_value"],
+            "mapping_source": "canonical_answer_id",
+            "parse_status": mapping_result["parse_status"],
+        }
+        return {
+            "resolved_fields": resolved_fields,
+            "parse_status": mapping_result["parse_status"],
+            "applied_values": applied_values,
+            "evidence_fragments": {field_path: evidence},
+        }
+
+    if field_path == "preferred_contact_method":
+        mapping_result = map_contact_method_button_id(answer_id)
+        if mapping_result["parse_status"] == "success":
+            resolved_fields.append(field_path)
+            applied_values[field_path] = mapping_result["normalized_value"]
+        evidence = {
+            "field_path": field_path,
+            "answer_id": answer_id,
+            "normalized_value": mapping_result["normalized_value"],
+            "mapping_source": "canonical_answer_id",
+            "parse_status": mapping_result["parse_status"],
+        }
+        return {
+            "resolved_fields": resolved_fields,
+            "parse_status": mapping_result["parse_status"],
+            "applied_values": applied_values,
+            "evidence_fragments": {field_path: evidence},
+        }
+
     mapped_value: Any = None
     mapping_source = "unresolved"
 
@@ -144,4 +220,12 @@ def apply_answer_to_field(
     }
 
 
-__all__ = ["FieldApplicationResult", "TimezoneParseResult", "apply_answer_to_field", "parse_timezone_reply"]
+__all__ = [
+    "CanonicalMappingResult",
+    "FieldApplicationResult",
+    "TimezoneParseResult",
+    "apply_answer_to_field",
+    "map_consent_button_id",
+    "map_contact_method_button_id",
+    "parse_timezone_reply",
+]
