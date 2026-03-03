@@ -64,12 +64,50 @@ class SQLiteStorageBackend(StorageBackend):
             )
             con.execute(
                 """
+                CREATE TABLE IF NOT EXISTS draft_stage_timestamps (
+                    draft_id TEXT NOT NULL,
+                    stage TEXT NOT NULL,
+                    at TEXT NOT NULL,
+                    PRIMARY KEY(draft_id, stage)
+                )
+                """
+            )
+            con.execute(
+                """
+                CREATE TABLE IF NOT EXISTS question_episodes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    draft_id TEXT NOT NULL,
+                    question_id TEXT NOT NULL,
+                    field_path TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    status_history_json TEXT NOT NULL,
+                    planned_at TEXT NOT NULL,
+                    asked_at TEXT NOT NULL,
+                    answered_at TEXT NOT NULL,
+                    applied_at TEXT NOT NULL,
+                    ask_session_id TEXT NOT NULL
+                )
+                """
+            )
+            con.execute(
+                """
                 CREATE TABLE IF NOT EXISTS draft_evidence (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     draft_id TEXT NOT NULL,
                     field_path TEXT NOT NULL,
                     evidence_json TEXT NOT NULL,
                     UNIQUE(draft_id, field_path)
+                )
+                """
+            )
+            con.execute(
+                """
+                CREATE TABLE IF NOT EXISTS draft_unresolved_snapshots (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    draft_id TEXT NOT NULL,
+                    stage TEXT NOT NULL,
+                    unresolved_fields_json TEXT NOT NULL,
+                    captured_at TEXT NOT NULL
                 )
                 """
             )
@@ -199,6 +237,54 @@ class SQLiteStorageBackend(StorageBackend):
                 (draft_id, state, at),
             )
 
+    def persist_stage_timestamp(self, *, draft_id: str, stage: str, at: str) -> None:
+        with self._connect() as con:
+            con.execute(
+                """
+                INSERT INTO draft_stage_timestamps (draft_id, stage, at)
+                VALUES (?, ?, ?)
+                ON CONFLICT(draft_id, stage) DO UPDATE SET at = excluded.at
+                """,
+                (draft_id, stage, at),
+            )
+
+    def persist_question_episode(
+        self,
+        *,
+        draft_id: str,
+        question_id: str,
+        field_path: str,
+        status: str,
+        status_history: list[Mapping[str, str]],
+        planned_at: str,
+        asked_at: str,
+        answered_at: str,
+        applied_at: str,
+        ask_session_id: str,
+    ) -> None:
+        with self._connect() as con:
+            con.execute(
+                """
+                INSERT INTO question_episodes (
+                    draft_id, question_id, field_path, status,
+                    status_history_json, planned_at, asked_at,
+                    answered_at, applied_at, ask_session_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    draft_id,
+                    question_id,
+                    field_path,
+                    status,
+                    json.dumps([dict(item) for item in status_history]),
+                    planned_at,
+                    asked_at,
+                    answered_at,
+                    applied_at,
+                    ask_session_id,
+                ),
+            )
+
     def persist_evidence(
         self, *, draft_id: str, field_path: str, evidence: Mapping[str, Any]
     ) -> None:
@@ -211,6 +297,24 @@ class SQLiteStorageBackend(StorageBackend):
                 DO UPDATE SET evidence_json = excluded.evidence_json
                 """,
                 (draft_id, field_path, json.dumps(dict(evidence))),
+            )
+
+    def persist_unresolved_snapshot(
+        self,
+        *,
+        draft_id: str,
+        stage: str,
+        unresolved_fields: list[str],
+        captured_at: str,
+    ) -> None:
+        with self._connect() as con:
+            con.execute(
+                """
+                INSERT INTO draft_unresolved_snapshots (
+                    draft_id, stage, unresolved_fields_json, captured_at
+                ) VALUES (?, ?, ?, ?)
+                """,
+                (draft_id, stage, json.dumps(unresolved_fields), captured_at),
             )
 
     def persist_finalized_schema(

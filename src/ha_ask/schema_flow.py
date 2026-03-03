@@ -219,6 +219,7 @@ def run_schema_flow(
         required_fields=required_fields,
         created_at=created_at,
     )
+    storage.persist_stage_timestamp(draft_id=draft_id, stage="created", at=created_at)
 
     for field in required_fields:
         if draft_state.get(field) is not None:
@@ -266,6 +267,11 @@ def run_schema_flow(
                 state="planned",
                 at=draft_lifecycle["planned_at"],
             )
+            storage.persist_stage_timestamp(
+                draft_id=draft_id,
+                stage="planned",
+                at=draft_lifecycle["planned_at"],
+            )
             stage = _next_stage(stage)
             continue
 
@@ -311,6 +317,7 @@ def run_schema_flow(
             first_asked_at = interactions[0]["asked_at"] if interactions else _utc_now_iso()
             draft_lifecycle["asked_at"] = first_asked_at
             storage.record_draft_transition(draft_id=draft_id, state="asked", at=first_asked_at)
+            storage.persist_stage_timestamp(draft_id=draft_id, stage="asked", at=first_asked_at)
             stage = _next_stage(stage)
             continue
 
@@ -378,11 +385,28 @@ def run_schema_flow(
                         "applied_at": applied_at,
                     }
                 )
+                storage.persist_question_episode(
+                    draft_id=draft_id,
+                    question_id=planned.probe_id,
+                    field_path=planned.field_path,
+                    status="applied" if resolved_fields else "unresolved",
+                    status_history=status_history,
+                    planned_at=interaction["planned_at"],
+                    asked_at=asked_at,
+                    answered_at=answered_at,
+                    applied_at=applied_at,
+                    ask_session_id=ask_session_id,
+                )
 
             draft_lifecycle["applied_at"] = _utc_now_iso()
             storage.record_draft_transition(
                 draft_id=draft_id,
                 state="applied",
+                at=draft_lifecycle["applied_at"],
+            )
+            storage.persist_stage_timestamp(
+                draft_id=draft_id,
+                stage="applied",
                 at=draft_lifecycle["applied_at"],
             )
             stage = _next_stage(stage)
@@ -400,10 +424,21 @@ def run_schema_flow(
                 state="finalized",
                 at=draft_lifecycle["finalized_at"],
             )
+            storage.persist_stage_timestamp(
+                draft_id=draft_id,
+                stage="finalized",
+                at=draft_lifecycle["finalized_at"],
+            )
             stage = _next_stage(stage)
             continue
 
     unresolved_fields = [field for field in required_fields if draft_state.get(field) is None]
+    storage.persist_unresolved_snapshot(
+        draft_id=draft_id,
+        stage="finalized",
+        unresolved_fields=unresolved_fields,
+        captured_at=_utc_now_iso(),
+    )
 
     final_object = None
     if finalize_result["ok"] and finalize_result["finalized"] is not None:

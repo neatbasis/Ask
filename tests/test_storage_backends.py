@@ -85,6 +85,13 @@ def test_schema_flow_persists_draft_transitions_and_finalization_to_sqlite(tmp_p
             "SELECT draft_id, final_object_json, rationale_json FROM schema_drafts"
         ).fetchone()
         evidence_count = con.execute("SELECT COUNT(*) FROM draft_evidence").fetchone()[0]
+        question_episode_count = con.execute("SELECT COUNT(*) FROM question_episodes").fetchone()[0]
+        unresolved_snapshot_row = con.execute(
+            "SELECT stage, unresolved_fields_json FROM draft_unresolved_snapshots"
+        ).fetchone()
+        stage_rows = con.execute(
+            "SELECT stage FROM draft_stage_timestamps ORDER BY stage"
+        ).fetchall()
 
     assert draft_row is not None
     draft_id = draft_row[0]
@@ -94,6 +101,11 @@ def test_schema_flow_persists_draft_transitions_and_finalization_to_sqlite(tmp_p
     assert draft_row[1] is not None
     assert draft_row[2] is not None
     assert evidence_count == 4
+    assert question_episode_count == 3
+    assert unresolved_snapshot_row is not None
+    assert unresolved_snapshot_row[0] == "finalized"
+    assert unresolved_snapshot_row[1] == "[]"
+    assert [row[0] for row in stage_rows] == ["applied", "asked", "created", "finalized", "planned"]
 
     reset_storage_backend()
 

@@ -36,8 +36,40 @@ class StorageBackend(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def persist_stage_timestamp(self, *, draft_id: str, stage: str, at: str) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def persist_question_episode(
+        self,
+        *,
+        draft_id: str,
+        question_id: str,
+        field_path: str,
+        status: str,
+        status_history: list[Mapping[str, str]],
+        planned_at: str,
+        asked_at: str,
+        answered_at: str,
+        applied_at: str,
+        ask_session_id: str,
+    ) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
     def persist_evidence(
         self, *, draft_id: str, field_path: str, evidence: Mapping[str, Any]
+    ) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def persist_unresolved_snapshot(
+        self,
+        *,
+        draft_id: str,
+        stage: str,
+        unresolved_fields: list[str],
+        captured_at: str,
     ) -> None:
         raise NotImplementedError
 

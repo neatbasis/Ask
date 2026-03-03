@@ -67,7 +67,10 @@ class InMemoryStorageBackend(StorageBackend):
             "partial_input": dict(partial_input),
             "required_fields": list(required_fields),
             "state_transitions": [{"state": "created", "at": created_at}],
+            "stage_timestamps": {"created": created_at},
+            "question_episodes": [],
             "evidence": {},
+            "unresolved_snapshots": [],
             "final_object": None,
             "rationale": None,
         }
@@ -79,6 +82,43 @@ class InMemoryStorageBackend(StorageBackend):
             return
         draft["state_transitions"].append({"state": state, "at": at})
 
+    def persist_stage_timestamp(self, *, draft_id: str, stage: str, at: str) -> None:
+        draft = self._drafts.get(draft_id)
+        if not draft:
+            return
+        draft["stage_timestamps"][stage] = at
+
+    def persist_question_episode(
+        self,
+        *,
+        draft_id: str,
+        question_id: str,
+        field_path: str,
+        status: str,
+        status_history: list[Mapping[str, str]],
+        planned_at: str,
+        asked_at: str,
+        answered_at: str,
+        applied_at: str,
+        ask_session_id: str,
+    ) -> None:
+        draft = self._drafts.get(draft_id)
+        if not draft:
+            return
+        draft["question_episodes"].append(
+            {
+                "question_id": question_id,
+                "field_path": field_path,
+                "status": status,
+                "status_history": deepcopy([dict(item) for item in status_history]),
+                "planned_at": planned_at,
+                "asked_at": asked_at,
+                "answered_at": answered_at,
+                "applied_at": applied_at,
+                "ask_session_id": ask_session_id,
+            }
+        )
+
     def persist_evidence(
         self, *, draft_id: str, field_path: str, evidence: Mapping[str, Any]
     ) -> None:
@@ -86,6 +126,25 @@ class InMemoryStorageBackend(StorageBackend):
         if not draft:
             return
         draft["evidence"][field_path] = deepcopy(dict(evidence))
+
+    def persist_unresolved_snapshot(
+        self,
+        *,
+        draft_id: str,
+        stage: str,
+        unresolved_fields: list[str],
+        captured_at: str,
+    ) -> None:
+        draft = self._drafts.get(draft_id)
+        if not draft:
+            return
+        draft["unresolved_snapshots"].append(
+            {
+                "stage": stage,
+                "unresolved_fields": list(unresolved_fields),
+                "captured_at": captured_at,
+            }
+        )
 
     def persist_finalized_schema(
         self,
