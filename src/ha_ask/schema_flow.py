@@ -5,8 +5,8 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from typing import Any, Literal, TypedDict
 
-from .evidence import build_choice_evidence, build_reply_evidence
 from .dispatch import ask_question
+from .evidence import build_choice_evidence, build_reply_evidence
 from .finalize import FinalizeRationale, finalize_schema
 from .planning import ProbeCandidate, plan_questions
 from .reporting import DraftReportInput, build_draft_report
@@ -257,7 +257,12 @@ def run_schema_flow(
     planned_questions: list[ProbeCandidate] = []
     interactions: list[dict[str, Any]] = []
     question_lifecycle: list[QuestionLifecycle] = []
-    finalize_result: dict[str, Any] = {"ok": False, "finalized": None, "rationale": [], "errors": []}
+    finalize_result: dict[str, Any] = {
+        "ok": False,
+        "finalized": None,
+        "rationale": [],
+        "errors": [],
+    }
 
     while stage is not None:
         if stage == "created":
@@ -265,9 +270,15 @@ def run_schema_flow(
             continue
 
         if stage == "planned":
-            unresolved_before_plan = [field for field in required_fields if draft_state.get(field) is None]
+            unresolved_before_plan = [
+                field for field in required_fields if draft_state.get(field) is None
+            ]
             planned_questions = plan_questions(
-                [candidate for candidate in candidates if candidate.field_path in unresolved_before_plan]
+                [
+                    candidate
+                    for candidate in candidates
+                    if candidate.field_path in unresolved_before_plan
+                ]
             )
             draft_lifecycle["planned_at"] = _utc_now_iso()
             storage.record_draft_transition(

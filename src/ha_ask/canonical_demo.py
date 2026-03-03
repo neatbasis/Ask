@@ -52,12 +52,18 @@ def _extract_planned_questions(markdown: str) -> list[PlannedQuestionSpec]:
 
 
 def _extract_canonical_answers(markdown: str) -> dict[str, str]:
-    block_match = re.search(r"### Canonical answers to use during demo\n\n([\s\S]*?)\n## 3\)", markdown)
+    block_match = re.search(
+        r"### Canonical answers to use during demo\n\n([\s\S]*?)\n## 3\)",
+        markdown,
+    )
     if block_match is None:
         raise ValueError("missing_canonical_answers")
 
     answers: dict[str, str] = {}
-    for field, answer in re.findall(r"\d+\. `([^`]+)` -> (?:choose|reply) `([^`]+)`", block_match.group(1)):
+    for field, answer in re.findall(
+        r"\d+\. `([^`]+)` -> (?:choose|reply) `([^`]+)`",
+        block_match.group(1),
+    ):
         answers[field] = answer
     if not answers:
         raise ValueError("missing_canonical_answers_entries")
@@ -67,7 +73,9 @@ def _extract_canonical_answers(markdown: str) -> dict[str, str]:
 def load_demo_constants(path: str | Path = "docs/demo_scenario.md") -> DemoScenarioConstants:
     markdown = Path(path).read_text(encoding="utf-8")
     initial_payload = _extract_json_block(markdown, "## 1) Initial partial payload")
-    expected_final_json = _extract_json_block(markdown, "## 4) Final schema instance expected after completion")
+    expected_final_json = _extract_json_block(
+        markdown, "## 4) Final schema instance expected after completion"
+    )
     planned_questions = _extract_planned_questions(markdown)
     canonical_answers = _extract_canonical_answers(markdown)
     return {
@@ -208,9 +216,13 @@ def run_canonical_demo(
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run the canonical demo scenario from docs/demo_scenario.md")
+    parser = argparse.ArgumentParser(
+        description="Run the canonical demo scenario from docs/demo_scenario.md"
+    )
     parser.add_argument("--docs", default="docs/demo_scenario.md", help="Path to scenario markdown")
-    parser.add_argument("--output", default="artifacts/demo_report.json", help="Path to output report")
+    parser.add_argument(
+        "--output", default="artifacts/demo_report.json", help="Path to output report"
+    )
     return parser.parse_args()
 
 
