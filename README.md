@@ -1,7 +1,3 @@
-Here’s a solid, end-user-facing documentation shape you can drop into your repo (README section + API doc). I’ll write it as if your package is `ha_ask`, with `ask_question()`, `AskSpec`, `Answer`, plus the `errors.py` helpers as supported public surface.
-
----
-
 ## `ha_ask` — Ask questions via Home Assistant (Satellite + Mobile)
 
 `ha_ask` provides a single `ask_question()` function that can ask a question through different **channels**:
@@ -20,6 +16,12 @@ Install the project and its core runtime dependencies:
 ```bash
 python -m pip install --upgrade pip
 python -m pip install .
+```
+
+Install directly from GitHub with pip:
+
+```bash
+python -m pip install "git+https://github.com/neatbasis/Ask.git"
 ```
 
 ## Installation for editing / development
@@ -79,12 +81,64 @@ The demo validation contract is:
    python -m json.tool artifacts/demo_report.json
    ```
 
-Environment variables (recommended via `.env`):
+## Configuration
+
+Primary usage is to construct `Config(...)` directly in code:
+
+```python
+from ha_ask.config import Config
+
+cfg = Config(
+    api_url="https://home.example.com",
+    token="YOUR_LONG_LIVED_TOKEN",
+    notify_service="mobile_app_sebastian_mobile",  # optional
+    satellite_entity_id="assist_satellite.kitchen",  # optional
+)
+```
+
+For environment-backed deployments, use `Config.from_env()`:
+
+```python
+from ha_ask.config import Config
+
+cfg = Config.from_env()
+```
+
+### Environment variable reference (single source of truth)
+
+Required:
 
 * `HA_API_URL` – base URL of Home Assistant (e.g. `https://home.example.com`)
 * `HA_API_SECRET` – Long-Lived Access Token
-* `HA_SATELLITE_ENTITY_ID` *(optional)* – default satellite entity id
-* `HA_NOTIFY_SERVICE` *(optional)* – notify service name (e.g. `mobile_app_sebastian_mobile`)
+
+Optional:
+
+* `HA_NOTIFY_SERVICE` – notify service name (e.g. `mobile_app_sebastian_mobile`)
+* `HA_SATELLITE_ENTITY_ID` – default satellite entity id
+
+### Migration note
+
+* Old: `load_config()` with dotenv side effects
+* New: explicit `Config` construction / `Config.from_env()`
+
+```python
+# Before
+from ha_ask.config import load_config
+
+cfg = load_config()  # deprecated compatibility API
+
+# After
+from ha_ask.config import Config
+
+cfg = Config(
+    api_url="https://home.example.com",
+    token="YOUR_LONG_LIVED_TOKEN",
+)
+# or, for env-backed deployments:
+# cfg = Config.from_env()
+```
+
+`load_config()` remains available as a deprecated compatibility wrapper. Prefer `Config(...)` for explicit configuration, or `Config.from_env()` when reading from environment variables.
 
 ## Demonstrate artifact generation (canonical demo)
 
@@ -92,7 +146,7 @@ This is the fastest way to generate the canonical demo artifact described in `do
 
 ### Prerequisites
 
-Set the Home Assistant variables already used by this project:
+If you are using environment-backed config (`Config.from_env()`), set:
 
 - `HA_API_URL`
 - `HA_API_SECRET`
@@ -123,7 +177,7 @@ Open the JSON and verify key contract fields exist, for example:
 
 ### Troubleshooting
 
-- **Missing env vars**: export `HA_API_URL`, `HA_API_SECRET`, and `HA_NOTIFY_SERVICE` before running demos that call Home Assistant.
+- **Missing env vars**: export `HA_API_URL`, `HA_API_SECRET`, and (for mobile demos) `HA_NOTIFY_SERVICE` before running demos that call Home Assistant.
 - **Auth/token issues**: regenerate the long-lived token and re-export `HA_API_SECRET` if Home Assistant returns 401/403.
 - **Notify service failures**: verify `HA_NOTIFY_SERVICE` matches a valid `notify.*` service in Home Assistant.
 
@@ -190,6 +244,9 @@ res = ask_question(
 ```python
 from ha_ask import ask_question, AskSpec
 from ha_ask.errors import is_ok
+from ha_ask.config import Config
+
+cfg = Config.from_env().to_dict()  # or build Config(...) explicitly and call to_dict()
 
 spec = AskSpec(question="What should we do next?", answers=None, timeout_s=30)
 
@@ -212,6 +269,9 @@ Mobile needs a terminal “Done” action, so set `expect_reply=True`.
 ```python
 from ha_ask import ask_question, AskSpec
 from ha_ask.errors import is_ok
+from ha_ask.config import Config
+
+cfg = Config.from_env().to_dict()  # or build Config(...) explicitly and call to_dict()
 
 spec = AskSpec(
     question="Tell me what you want next. Reply then press Done.",
