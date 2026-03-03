@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import time
 import uuid
-from typing import Any, Dict
+from typing import Any
 
-from .types import AskResult, AskSpec
+from .types import AskResult, AskSessionRecord, AskSpec
 
-_ASK_SESSIONS: Dict[str, Dict[str, Any]] = {}
+_ASK_SESSIONS: dict[str, AskSessionRecord] = {}
 
 
 def persist_ask_session(*, channel: str, spec: AskSpec, result: AskResult) -> str:
@@ -23,7 +23,7 @@ def persist_ask_session(*, channel: str, spec: AskSpec, result: AskResult) -> st
     if not isinstance(replies, list):
         replies = []
 
-    record = {
+    record: AskSessionRecord = {
         "ask_session_id": ask_session_id,
         "channel": channel,
         "prompt": spec.question,
@@ -41,7 +41,7 @@ def persist_ask_session(*, channel: str, spec: AskSpec, result: AskResult) -> st
     return ask_session_id
 
 
-def get_ask_session(ask_session_id: str) -> Dict[str, Any] | None:
+def get_ask_session(ask_session_id: str) -> AskSessionRecord | None:
     return _ASK_SESSIONS.get(ask_session_id)
 
 

@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, Iterable, List, Mapping, TypedDict
 
+from .types import EvidenceMap
+
 
 LifecycleStage = str
 
@@ -20,7 +22,7 @@ class QuestionReportInput(TypedDict, total=False):
 class DraftReportInput(TypedDict, total=False):
     lifecycle: Mapping[str, str]
     questions: List[QuestionReportInput]
-    evidence_map: Mapping[str, Mapping[str, Any]]
+    evidence_map: EvidenceMap
     unresolved_fields: List[str]
 
 

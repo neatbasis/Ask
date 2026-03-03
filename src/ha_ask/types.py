@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, Sequence, TypedDict
+from typing import Any, Dict, Literal, Mapping, Optional, Sequence, TypedDict
 
 
 class AskResult(TypedDict):
@@ -15,6 +15,7 @@ class AskResult(TypedDict):
     - meta: transport/UI metadata (channel, tags, device_id, etc.)
     - error: None or error string
     """
+
     id: Optional[str]
     sentence: Optional[str]
     slots: Dict[str, Any]
@@ -46,7 +47,53 @@ class AskSpec:
 
     timeout_s: float = 180.0
     title: Optional[str] = None
-    
+
+
+EvidenceSource = Literal["ask_session"]
+EvidenceChannel = Literal["mobile", "satellite"] | str
+
+
+class BaseEvidenceRecord(TypedDict):
+    field_path: str
+    source: EvidenceSource
+    channel: EvidenceChannel
+    question_text: str
+    ask_session_id: str
+    asked_at: str
+    answered_at: str
+
+
+class ChoiceEvidenceRecord(BaseEvidenceRecord):
+    answer_id: str | None
+    answer_text: str | None
+    slot_binding: Mapping[str, Any]
+
+
+class ReplyEvidenceRecord(BaseEvidenceRecord):
+    raw_reply: str
+    parsed_value: Any
+    parse_status: Literal["success", "failed"]
+
+
+EvidenceRecord = ChoiceEvidenceRecord | ReplyEvidenceRecord
+EvidenceMap = Dict[str, EvidenceRecord]
+
+
+class AskSessionRecord(TypedDict):
+    ask_session_id: str
+    channel: str
+    prompt: str
+    chosen_answer_id: str | None
+    sentence: str | None
+    replies: list[Any]
+    slot_evidence: Mapping[str, Any]
+    slots: Dict[str, Any]
+    t_sent: Any
+    t_first_reply: Any
+    t_done: Any
+    persisted_at: float
+
+
 # ---------------------------------------------------------
 # Result helpers (channel-agnostic semantics)
 # ---------------------------------------------------------
