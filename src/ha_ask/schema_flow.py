@@ -7,7 +7,11 @@ from typing import Any, Literal, TypedDict
 
 from .apply import apply_answer_to_field
 from .dispatch import ask_question
-from .evidence import build_choice_evidence, build_reply_evidence
+from .evidence import (
+    EvidenceContext,
+    build_choice_evidence_for_apply,
+    build_reply_evidence_for_apply,
+)
 from .finalize import FinalizeRationale, finalize_schema
 from .planning import ProbeCandidate, plan_questions
 from .reporting import DraftReportInput, build_draft_report
@@ -333,42 +337,33 @@ def run_schema_flow(
 
                 meta = result.get("meta") if isinstance(result.get("meta"), Mapping) else {}
                 ask_session_id = str(meta.get("ask_session_id", ""))
+                context = EvidenceContext(
+                    field_path=planned.field_path,
+                    channel=channel,
+                    question_text=ask_spec.question,
+                    ask_session_id=ask_session_id,
+                    asked_at=asked_at,
+                    answered_at=answered_at,
+                )
 
                 if planned.field_path == "timezone":
                     timezone_fragment = apply_result["evidence_fragments"][planned.field_path]
-                    evidence_map[planned.field_path] = build_reply_evidence(
-                        field_path=planned.field_path,
-                        channel=channel,
-                        question_text=ask_spec.question,
+                    evidence_map[planned.field_path] = build_reply_evidence_for_apply(
+                        context=context,
                         raw_reply=str(timezone_fragment.get("raw_reply", "")),
                         parsed_value=timezone_fragment.get("parsed_value"),
                         parse_status=str(apply_result["parse_status"]),
-                        ask_session_id=ask_session_id,
-                        asked_at=asked_at,
-                        answered_at=answered_at,
                     )
                 else:
-                    matched_id = result.get("id") if isinstance(result.get("id"), str) else None
-                    answer_text = None
-                    if matched_id:
-                        for answer in ask_spec.answers or ():
-                            if answer.id == matched_id:
-                                answer_text = answer.title
-                                break
-                    evidence_map[planned.field_path] = build_choice_evidence(
-                        field_path=planned.field_path,
-                        channel=channel,
-                        question_text=ask_spec.question,
-                        answer_id=matched_id,
-                        answer_text=answer_text,
-                        slot_binding={
+                    evidence_map[planned.field_path] = build_choice_evidence_for_apply(
+                        context=context,
+                        ask_spec=ask_spec,
+                        ask_result=result,
+                        resolved_values={
                             field_name: draft_state[field_name]
                             for field_name in resolved_fields
                             if field_name in draft_state
                         },
-                        ask_session_id=ask_session_id,
-                        asked_at=asked_at,
-                        answered_at=answered_at,
                     )
 
                 question_lifecycle.append(

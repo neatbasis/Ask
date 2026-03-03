@@ -1,9 +1,35 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from ha_ask.canonical_demo import load_demo_constants, run_canonical_demo
+from ha_ask.evidence import REQUIRED_EVIDENCE_KEYS_BY_FIELD
+
+
+def _required_evidence_keys_from_demo_contract(path: str) -> dict[str, set[str]]:
+    document = Path(path).read_text(encoding="utf-8")
+    section_match = re.search(
+        r"## 5\) Required evidence artifacts per resolved field(?P<section>.*?)(\n## |\Z)",
+        document,
+        flags=re.S,
+    )
+    assert section_match is not None
+
+    section = section_match.group("section")
+    parsed: dict[str, set[str]] = {}
+    for field_match in re.finditer(r"###\s+`([^`]+)`(?P<body>.*?)(?=\n### |\Z)", section, flags=re.S):
+        field_path = field_match.group(1)
+        body = field_match.group("body")
+        keys: set[str] = set()
+        for line in body.splitlines():
+            if not line.strip().startswith("-") or ":" not in line:
+                continue
+            key_segment = line.split(":", maxsplit=1)[0]
+            keys.update({token.strip() for token in re.findall(r"`([^`]+)`", key_segment)})
+        parsed[field_path] = keys
+    return parsed
 
 
 def test_load_demo_constants_reads_markdown_contract() -> None:
@@ -87,6 +113,17 @@ def test_run_canonical_demo_evidence_contract_contains_required_keys_by_mode() -
         field_path = planned["field_path"]
         mode = planned["mode"]
         assert required_keys_by_mode[mode].issubset(set(evidence[field_path].keys()))
+
+
+def test_required_evidence_keys_align_with_demo_scenario_section_5_and_are_present() -> None:
+    required_by_field = _required_evidence_keys_from_demo_contract("docs/demo_scenario.md")
+    assert required_by_field == REQUIRED_EVIDENCE_KEYS_BY_FIELD
+
+    result = run_canonical_demo()
+    evidence = result["flow_result"]["evidence_map"]
+
+    for field_path, required_keys in required_by_field.items():
+        assert required_keys.issubset(set(evidence[field_path].keys()))
 
 
 def test_canonical_demo_cli_main_writes_report(tmp_path: Path, monkeypatch) -> None:
