@@ -28,10 +28,8 @@ import sys
 import json
 from typing import Any, Dict, List, Optional
 
-from dotenv import load_dotenv
-
 from ha_ask import ask_question, AskSpec, Answer
-from ha_ask.config import load_config, normalize_rest_api_url, derive_ws_url
+from ha_ask.config import Config, derive_ws_url
 from ha_ask.types import AskResult
 from ha_ask.errors import (
     error_kind,
@@ -340,7 +338,7 @@ def test_T3_direct_satellite_case_robustness(client: Client, entity_id: str) -> 
     print("\n[REPORT BACK] Which variants reliably map to id yes/no on your instance?")
 
 
-def test_T4_adapter_satellite_answers(cfg: Dict[str, Any]) -> None:
+def test_T4_adapter_satellite_answers(cfg: Config) -> None:
     section("T4 (ADAPTER) ha_ask ask_question(channel='satellite') with answers (expect id yes/no)")
     spec = AskSpec(
         question="Say YES (yes/yeah/of course/sure) OR say NO (no/nope/nah)",
@@ -353,9 +351,9 @@ def test_T4_adapter_satellite_answers(cfg: Dict[str, Any]) -> None:
     res = ask_question(
         channel="satellite",
         spec=spec,
-        api_url=cfg["api_url"],
-        token=cfg["token"],
-        satellite_entity_id=cfg.get("satellite_entity_id"),
+        api_url=cfg.api_url,
+        token=cfg.token,
+        satellite_entity_id=cfg.satellite_entity_id,
     )
 
     pp(res)
@@ -363,9 +361,9 @@ def test_T4_adapter_satellite_answers(cfg: Dict[str, Any]) -> None:
     print("\n[REPORT BACK] If id is None here but not in T1/T3, then our adapter is not passing answers correctly.")
 
 
-def test_T5_adapter_mobile_choice(cfg: Dict[str, Any]) -> None:
+def test_T5_adapter_mobile_choice(cfg: Config) -> None:
     section("T5 (ADAPTER) ha_ask ask_question(channel='mobile') choice-mode (expect id yes/no, replies collected)")
-    notify_service = cfg.get("notify_service") or os.environ.get("HA_NOTIFY_SERVICE")
+    notify_service = cfg.notify_service or os.environ.get("HA_NOTIFY_SERVICE")
     if not notify_service:
         print("[SKIP] No HA_NOTIFY_SERVICE set. Add it to .env to run mobile tests.")
         return
@@ -384,8 +382,8 @@ def test_T5_adapter_mobile_choice(cfg: Dict[str, Any]) -> None:
     res = ask_question(
         channel="mobile",
         spec=spec,
-        api_url=cfg["api_url"],
-        token=cfg["token"],
+        api_url=cfg.api_url,
+        token=cfg.token,
         notify_service=notify_service,
     )
 
@@ -397,9 +395,9 @@ def test_T5_adapter_mobile_choice(cfg: Dict[str, Any]) -> None:
     print("  - slots is {} (Assist-pure)")
 
 
-def test_T6_adapter_mobile_reply(cfg: Dict[str, Any]) -> None:
+def test_T6_adapter_mobile_reply(cfg: Config) -> None:
     section("T6 (ADAPTER) ha_ask ask_question(channel='mobile') reply-mode (expect id=None, sentence=last reply)")
-    notify_service = cfg.get("notify_service") or os.environ.get("HA_NOTIFY_SERVICE")
+    notify_service = cfg.notify_service or os.environ.get("HA_NOTIFY_SERVICE")
     if not notify_service:
         print("[SKIP] No HA_NOTIFY_SERVICE set. Add it to .env to run mobile tests.")
         return
@@ -416,8 +414,8 @@ def test_T6_adapter_mobile_reply(cfg: Dict[str, Any]) -> None:
     res = ask_question(
         channel="mobile",
         spec=spec,
-        api_url=cfg["api_url"],
-        token=cfg["token"],
+        api_url=cfg.api_url,
+        token=cfg.token,
         notify_service=notify_service,
     )
 
@@ -431,23 +429,22 @@ def test_T6_adapter_mobile_reply(cfg: Dict[str, Any]) -> None:
 
 
 def main() -> None:
-    load_dotenv()
-    cfg = load_config()
+    cfg = Config.from_env()
 
-    if not cfg.get("api_url") or not cfg.get("token"):
-        sys.exit("Missing HA_API_URL or HA_API_SECRET in .env")
+    if not cfg.api_url or not cfg.token:
+        sys.exit("Missing HA_API_URL or HA_API_SECRET in environment")
 
-    rest = normalize_rest_api_url(cfg["api_url"])
-    entity_id = cfg.get("satellite_entity_id") or "assist_satellite.esphome_mycroft_assist_satellite"
+    rest = cfg.api_url
+    entity_id = cfg.satellite_entity_id or "assist_satellite.esphome_mycroft_assist_satellite"
 
     section("CONFIG")
     print("REST:", rest)
-    print("WS:  ", derive_ws_url(cfg["api_url"]))
+    print("WS:  ", derive_ws_url(cfg.api_url))
     print("SATELLITE_ENTITY_ID:", entity_id)
-    print("NOTIFY_SERVICE:", cfg.get("notify_service") or os.environ.get("HA_NOTIFY_SERVICE"))
+    print("NOTIFY_SERVICE:", cfg.notify_service or os.environ.get("HA_NOTIFY_SERVICE"))
 
     # Direct tests (satellite)
-    with Client(rest, cfg["token"]) as client:
+    with Client(rest, cfg.token) as client:
         test_T1_direct_satellite_with_answers(client, entity_id)
         test_T2_direct_satellite_without_answers(client, entity_id)
         test_T3_direct_satellite_case_robustness(client, entity_id)
