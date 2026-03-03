@@ -101,7 +101,7 @@ Set the Home Assistant variables already used by this project:
 ### Run this exact command
 
 ```bash
-python -m ha_ask.demo_report --output artifacts/demo_report.json
+python -m ha_ask.canonical_demo --output artifacts/demo_report.json
 ```
 
 ### Success looks like
