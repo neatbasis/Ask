@@ -34,6 +34,9 @@ dependencies = [
 Repository = "https://git.sebastianmaki.fi/sebastian/Ask"  # change to your Gitea URL
 Issues = "https://git.sebastianmaki.fi/sebastian/Ask/issues"
 
+[project.scripts]
+ha-ask-canonical-demo = "ha_ask.canonical_demo:main"
+
 
 [project.optional-dependencies]
 test = [

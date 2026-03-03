@@ -6,8 +6,7 @@ import re
 from pathlib import Path
 from typing import Any, TypedDict
 
-from .reporting import DraftReportInput, build_draft_report
-from .schema_flow import ScenarioName, run_schema_flow
+from .schema_flow import ScenarioName, run_schema_flow_with_report
 
 
 class PlannedQuestionSpec(TypedDict):
@@ -53,12 +52,18 @@ def _extract_planned_questions(markdown: str) -> list[PlannedQuestionSpec]:
 
 
 def _extract_canonical_answers(markdown: str) -> dict[str, str]:
-    block_match = re.search(r"### Canonical answers to use during demo\n\n([\s\S]*?)\n## 3\)", markdown)
+    block_match = re.search(
+        r"### Canonical answers to use during demo\n\n([\s\S]*?)\n## 3\)",
+        markdown,
+    )
     if block_match is None:
         raise ValueError("missing_canonical_answers")
 
     answers: dict[str, str] = {}
-    for field, answer in re.findall(r"\d+\. `([^`]+)` -> (?:choose|reply) `([^`]+)`", block_match.group(1)):
+    for field, answer in re.findall(
+        r"\d+\. `([^`]+)` -> (?:choose|reply) `([^`]+)`",
+        block_match.group(1),
+    ):
         answers[field] = answer
     if not answers:
         raise ValueError("missing_canonical_answers_entries")
@@ -68,7 +73,9 @@ def _extract_canonical_answers(markdown: str) -> dict[str, str]:
 def load_demo_constants(path: str | Path = "docs/demo_scenario.md") -> DemoScenarioConstants:
     markdown = Path(path).read_text(encoding="utf-8")
     initial_payload = _extract_json_block(markdown, "## 1) Initial partial payload")
-    expected_final_json = _extract_json_block(markdown, "## 4) Final schema instance expected after completion")
+    expected_final_json = _extract_json_block(
+        markdown, "## 4) Final schema instance expected after completion"
+    )
     planned_questions = _extract_planned_questions(markdown)
     canonical_answers = _extract_canonical_answers(markdown)
     return {
@@ -107,33 +114,6 @@ def _response_for(field_path: str, answer_value: str) -> dict[str, Any]:
     raise ValueError(f"unsupported_field:{field_path}")
 
 
-def _report_payload_from_flow(flow_result: dict[str, Any]) -> DraftReportInput:
-    questions = []
-    for item in flow_result["question_lifecycle"]:
-        resolved_fields = []
-        if item["status"] == "applied":
-            resolved_fields = [item["field_path"]]
-
-        questions.append(
-            {
-                "question_id": item["question_id"],
-                "field_path": item["field_path"],
-                "asked_at": item["asked_at"],
-                "answered_at": item["answered_at"],
-                "resolved_fields": resolved_fields,
-                "status": item["status"],
-                "retry_count": 0,
-            }
-        )
-
-    return {
-        "lifecycle": flow_result["draft_lifecycle"],
-        "questions": questions,
-        "evidence_map": flow_result["evidence_map"],
-        "unresolved_fields": flow_result["unresolved_fields"],
-    }
-
-
 def run_canonical_demo(
     *,
     schema_name: ScenarioName = "person_profile_v1",
@@ -165,7 +145,7 @@ def run_canonical_demo(
         canonical_answer = constants["canonical_answers"][expected_field]
         return _response_for(expected_field, canonical_answer)
 
-    flow_result = run_schema_flow(
+    run_result = run_schema_flow_with_report(
         schema_name=schema_name,
         partial_input=constants["initial_payload"],
         channel="mobile",
@@ -174,6 +154,7 @@ def run_canonical_demo(
         ask_callable=_ask_callable,
         notify_service="mobile_app_phone",
     )
+    flow_result = run_result["flow_result"]
 
     if calls != expected_questions:
         raise AssertionError("planned_question_order_mismatch")
@@ -221,8 +202,7 @@ def run_canonical_demo(
     if not evidence["preferred_contact_method"].get("answer_id") == "contact_email":
         raise AssertionError("contact_mapping_mismatch")
 
-    report_payload = _report_payload_from_flow(flow_result)
-    report = build_draft_report(report_payload)
+    report = run_result["report"]
 
     output_path = Path(report_output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -237,30 +217,25 @@ def run_canonical_demo(
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run the canonical schema flow demo and generate a runtime-backed report artifact."
+        description="Run the canonical demo scenario from docs/demo_scenario.md"
     )
+    parser.add_argument("--docs", default="docs/demo_scenario.md", help="Path to scenario markdown")
     parser.add_argument(
-        "--docs-path",
-        default="docs/demo_scenario.md",
-        help="Path to the markdown contract that defines the canonical scenario.",
-    )
-    parser.add_argument(
-        "--output",
-        default="artifacts/demo_report.json",
-        help="Path to write the generated artifact JSON.",
+        "--output", default="artifacts/demo_report.json", help="Path to output report"
     )
     return parser.parse_args()
 
 
 def main() -> int:
     args = _parse_args()
-    result = run_canonical_demo(docs_path=args.docs_path, report_output_path=args.output)
-    print(f"Wrote canonical demo artifact to {result['report_path']}")
+    result = run_canonical_demo(docs_path=args.docs, report_output_path=args.output)
+    print(json.dumps(result["report"], indent=2, sort_keys=True))
+    print(f"Wrote demo report to {result['report_path']}")
     return 0
+
+
+__all__ = ["load_demo_constants", "run_canonical_demo", "main"]
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
-
-__all__ = ["load_demo_constants", "run_canonical_demo"]

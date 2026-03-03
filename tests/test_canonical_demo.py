@@ -87,3 +87,15 @@ def test_run_canonical_demo_evidence_contract_contains_required_keys_by_mode() -
         field_path = planned["field_path"]
         mode = planned["mode"]
         assert required_keys_by_mode[mode].issubset(set(evidence[field_path].keys()))
+
+
+def test_canonical_demo_cli_main_writes_report(tmp_path: Path, monkeypatch) -> None:
+    from ha_ask.canonical_demo import main
+
+    output_path = tmp_path / "cli_report.json"
+    monkeypatch.setattr("sys.argv", ["canonical_demo", "--output", str(output_path)])
+
+    exit_code = main()
+
+    assert exit_code == 0
+    assert output_path.exists()
