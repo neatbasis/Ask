@@ -38,7 +38,7 @@ def test_discord_choice_maps_answer_slot_bindings_to_slots(monkeypatch):
     ])
     monkeypatch.setattr(discord.uuid, "uuid4", lambda: type("U", (), {"hex": tag})())
 
-    result = discord.ask_question(client=object(), ws=ws, spec=spec, notify_service="notify_discord")
+    result = discord.ask_question(client=object(), ws=ws, spec=spec, notify_action="notify.discord")
 
     assert result["id"] == "quiet"
     assert result["slots"] == {"mode": "quiet", "volume": 10}
@@ -61,7 +61,7 @@ def test_discord_reply_mode_done_returns_last_reply(monkeypatch):
     )
     monkeypatch.setattr(discord.uuid, "uuid4", lambda: type("U", (), {"hex": tag})())
 
-    result = discord.ask_question(client=object(), ws=ws, spec=spec, notify_service="notify_discord")
+    result = discord.ask_question(client=object(), ws=ws, spec=spec, notify_action="notify.discord")
 
     assert result["id"] is None
     assert result["sentence"] == "second"
@@ -78,7 +78,7 @@ def test_discord_timeout_returns_semantic_timeout(monkeypatch):
     spec = AskSpec(question="Will timeout", answers=None, expect_reply=True, timeout_s=-1.0)
     ws = _DummyWS([{"data": {"tag": tag, "action": f"REPLY_{tag}", "reply_text": "late"}}])
 
-    result = discord.ask_question(client=object(), ws=ws, spec=spec, notify_service="notify_discord")
+    result = discord.ask_question(client=object(), ws=ws, spec=spec, notify_action="notify.discord")
 
     assert result["error"] == ERR_TIMEOUT
     assert result["meta"]["timed_out"] is True

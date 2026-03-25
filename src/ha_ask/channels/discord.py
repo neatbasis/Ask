@@ -8,6 +8,7 @@ from typing import Any, Dict, Optional
 from homeassistant_api import Client, WebsocketClient
 
 from ..client import call_service_no_response
+from ..config import parse_ha_action
 from ..errors import ERR_TIMEOUT
 from ..types import AskResult, AskSpec
 
@@ -50,7 +51,7 @@ def _extract_data(evd: Dict[str, Any]) -> Dict[str, Any]:
     return evd if isinstance(evd, dict) else {}
 
 
-def ask_question(client: Client, ws: WebsocketClient, spec: AskSpec, notify_service: str) -> AskResult:
+def ask_question(client: Client, ws: WebsocketClient, spec: AskSpec, notify_action: str) -> AskResult:
     tag = uuid.uuid4().hex
     session = _Session(tag=tag, t_sent=time.time())
 
@@ -78,13 +79,24 @@ def ask_question(client: Client, ws: WebsocketClient, spec: AskSpec, notify_serv
     if spec.title:
         payload["title"] = spec.title
 
-    ok, err = call_service_no_response(client, "notify", notify_service, **payload)
+    try:
+        domain, service = parse_ha_action(notify_action)
+    except ValueError as exc:
+        return {
+            "id": None,
+            "sentence": None,
+            "slots": {},
+            "meta": {"channel": "discord", "tag": tag, "notify_action": notify_action},
+            "error": str(exc),
+        }
+
+    ok, err = call_service_no_response(client, domain, service, **payload)
     if not ok:
         return {
             "id": None,
             "sentence": None,
             "slots": {},
-            "meta": {"channel": "discord", "tag": tag, "notify_service": notify_service},
+            "meta": {"channel": "discord", "tag": tag, "notify_action": notify_action},
             "error": f"send_failed: {err}",
         }
 
@@ -100,7 +112,7 @@ def ask_question(client: Client, ws: WebsocketClient, spec: AskSpec, notify_serv
                         "channel": "discord",
                         "mode": "reply" if reply_mode else "choice",
                         "tag": tag,
-                        "notify_service": notify_service,
+                        "notify_action": notify_action,
                         "user_id": session.user_id,
                         "replies": session.replies,
                         "events": session.events,
@@ -152,7 +164,7 @@ def ask_question(client: Client, ws: WebsocketClient, spec: AskSpec, notify_serv
                         "tag": tag,
                         "ask_session_id": tag,
                         "slot_evidence": slot_evidence,
-                        "notify_service": notify_service,
+                        "notify_action": notify_action,
                         "user_id": session.user_id,
                         "replies": session.replies,
                         "action": action,
@@ -177,7 +189,7 @@ def ask_question(client: Client, ws: WebsocketClient, spec: AskSpec, notify_serv
                         "tag": tag,
                         "ask_session_id": tag,
                         "slot_evidence": {},
-                        "notify_service": notify_service,
+                        "notify_action": notify_action,
                         "user_id": session.user_id,
                         "replies": session.replies,
                         "action": action,
@@ -193,6 +205,6 @@ def ask_question(client: Client, ws: WebsocketClient, spec: AskSpec, notify_serv
         "id": None,
         "sentence": None,
         "slots": {},
-        "meta": {"channel": "discord", "tag": tag, "notify_service": notify_service},
+        "meta": {"channel": "discord", "tag": tag, "notify_action": notify_action},
         "error": ERR_TIMEOUT,
     }

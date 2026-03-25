@@ -91,7 +91,7 @@ from ha_ask.config import Config
 cfg = Config(
     api_url="https://home.example.com",
     token="YOUR_LONG_LIVED_TOKEN",
-    notify_service="mobile_app_sebastian_mobile",  # optional
+    notify_action="notify.mobile_app_sebastian_mobile",  # optional
     satellite_entity_id="assist_satellite.kitchen",  # optional
 )
 ```
@@ -113,7 +113,7 @@ Required:
 
 Optional:
 
-* `HA_NOTIFY_SERVICE` – notify service name (e.g. `mobile_app_sebastian_mobile`)
+* `HA_NOTIFY_ACTION` – full Home Assistant action string (e.g. `notify.mobile_app_sebastian_mobile`)
 * `HA_SATELLITE_ENTITY_ID` – default satellite entity id
 
 ### Migration note
@@ -150,7 +150,7 @@ If you are using environment-backed config (`Config.from_env()`), set:
 
 - `HA_API_URL`
 - `HA_API_SECRET`
-- `HA_NOTIFY_SERVICE`
+- `HA_NOTIFY_ACTION`
 
 ### Run this exact command
 
@@ -177,9 +177,9 @@ Open the JSON and verify key contract fields exist, for example:
 
 ### Troubleshooting
 
-- **Missing env vars**: export `HA_API_URL`, `HA_API_SECRET`, and (for mobile demos) `HA_NOTIFY_SERVICE` before running demos that call Home Assistant.
+- **Missing env vars**: export `HA_API_URL`, `HA_API_SECRET`, and (for mobile demos) `HA_NOTIFY_ACTION` before running demos that call Home Assistant.
 - **Auth/token issues**: regenerate the long-lived token and re-export `HA_API_SECRET` if Home Assistant returns 401/403.
-- **Notify service failures**: verify `HA_NOTIFY_SERVICE` matches a valid `notify.*` service in Home Assistant.
+- **Notify service failures**: verify `HA_NOTIFY_ACTION` is a full Home Assistant action string such as `notify.mobile_app_sebastian_mobile`.
 
 ---
 
@@ -196,7 +196,7 @@ res = ask_question(
     api_url="https://home.example.com",
     token="YOUR_LONG_LIVED_TOKEN",
     satellite_entity_id="assist_satellite.my_satellite",   # satellite only
-    notify_service="mobile_app_my_phone",                  # mobile only
+    notify_action="notify.mobile_app_my_phone",                  # mobile only
 )
 ```
 
@@ -209,7 +209,7 @@ res = ask_question(
 * `spec` (`AskSpec`): question + answers + behavior flags
 * `api_url`, `token`: Home Assistant REST base URL and long-lived token
 * `satellite_entity_id`: required for satellite unless you set `HA_SATELLITE_ENTITY_ID` or rely on your library default
-* `notify_service`: required for mobile unless you set `HA_NOTIFY_SERVICE`
+* `notify_action`: required for mobile unless you set `HA_NOTIFY_ACTION`
 
 ### Returns: `AskResult`
 
@@ -287,7 +287,7 @@ res = ask_question(
     spec=spec,
     api_url=cfg["api_url"],
     token=cfg["token"],
-    notify_service=cfg["notify_service"],
+    notify_action=cfg["notify_action"],
 )
 
 if is_ok(res):
@@ -347,7 +347,7 @@ spec = AskSpec(
     title="SemanticNG",
 )
 
-res = ask_question(channel="mobile", spec=spec, api_url=..., token=..., notify_service=...)
+res = ask_question(channel="mobile", spec=spec, api_url=..., token=..., notify_action=...)
 
 print(res["id"])            # "yes" or "no"
 print(res["meta"]["replies"])  # optional text replies

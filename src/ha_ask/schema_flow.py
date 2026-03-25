@@ -202,7 +202,7 @@ def run_schema_flow(
     api_url: str,
     token: str,
     ask_callable: AskCallable = ask_question,
-    notify_service: str | None = None,
+    notify_action: str | None = None,
     satellite_entity_id: str | None = None,
 ) -> SchemaFlowResult:
     required_fields, candidates, specs_by_field = _supported_scenario(schema_name)
@@ -292,8 +292,8 @@ def run_schema_flow(
                     "api_url": api_url,
                     "token": token,
                 }
-                if notify_service:
-                    ask_kwargs["notify_service"] = notify_service
+                if notify_action:
+                    ask_kwargs["notify_action"] = notify_action
                 if satellite_entity_id:
                     ask_kwargs["satellite_entity_id"] = satellite_entity_id
 

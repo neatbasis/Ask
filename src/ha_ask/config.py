@@ -23,11 +23,23 @@ def derive_ws_url(rest_api_url: str) -> str:
     return ws_base.rstrip("/") + "/websocket"
 
 
+def parse_ha_action(action: str) -> tuple[str, str]:
+    candidate = action.strip()
+    if not candidate:
+        raise ValueError("invalid_ha_action:empty")
+    if "." not in candidate:
+        raise ValueError("invalid_ha_action:expected_domain_dot_service")
+    domain, service = candidate.split(".", 1)
+    if not domain or not service:
+        raise ValueError("invalid_ha_action:expected_domain_dot_service")
+    return domain, service
+
+
 @dataclass
 class Config:
     api_url: str | None
     token: str | None
-    notify_service: str | None = None
+    notify_action: str | None = None
     satellite_entity_id: str | None = None
 
     def __post_init__(self) -> None:
@@ -40,7 +52,7 @@ class Config:
         return cls(
             api_url=env.get("HA_API_URL"),
             token=env.get("HA_API_SECRET"),
-            notify_service=env.get("HA_NOTIFY_SERVICE"),
+            notify_action=env.get("HA_NOTIFY_ACTION"),
             satellite_entity_id=env.get("HA_SATELLITE_ENTITY_ID"),
         )
 
@@ -49,7 +61,7 @@ class Config:
         return cls(
             api_url=data.get("api_url"),
             token=data.get("token"),
-            notify_service=data.get("notify_service"),
+            notify_action=data.get("notify_action"),
             satellite_entity_id=data.get("satellite_entity_id"),
         )
 
@@ -57,7 +69,7 @@ class Config:
         return {
             "api_url": self.api_url,
             "token": self.token,
-            "notify_service": self.notify_service,
+            "notify_action": self.notify_action,
             "satellite_entity_id": self.satellite_entity_id,
         }
 

@@ -11,6 +11,7 @@ from homeassistant_api import Client, WebsocketClient
 from ..types import AskSpec, AskResult, Answer
 from ..errors import ERR_TIMEOUT
 from ..client import call_service_no_response
+from ..config import parse_ha_action
 
 
 @dataclass
@@ -61,7 +62,7 @@ def ask_question(
     client: Client,
     ws: WebsocketClient,
     spec: AskSpec,
-    notify_service: str,
+    notify_action: str,
 ) -> AskResult:
     """
     Mobile channel adapter using actionable notifications.
@@ -109,13 +110,24 @@ def ask_question(
     if spec.title:
         payload["title"] = spec.title
 
-    ok, err = call_service_no_response(client, "notify", notify_service, **payload)
+    try:
+        domain, service = parse_ha_action(notify_action)
+    except ValueError as exc:
+        return {
+            "id": None,
+            "sentence": None,
+            "slots": {},
+            "meta": {"channel": "mobile", "tag": tag, "notify_action": notify_action},
+            "error": str(exc),
+        }
+
+    ok, err = call_service_no_response(client, domain, service, **payload)
     if not ok:
         return {
             "id": None,
             "sentence": None,
             "slots": {},
-            "meta": {"channel": "mobile", "tag": tag, "notify_service": notify_service},
+            "meta": {"channel": "mobile", "tag": tag, "notify_action": notify_action},
             "error": f"send_failed: {err}",
         }
 
@@ -132,7 +144,7 @@ def ask_question(
                         "channel": "mobile",
                         "mode": "reply" if reply_mode else "choice",
                         "tag": tag,
-                        "notify_service": notify_service,
+                        "notify_action": notify_action,
                         "device_id": session.device_id,
                         "replies": session.replies,
                         "events": session.events,
@@ -189,7 +201,7 @@ def ask_question(
                         "tag": tag,
                         "ask_session_id": tag,
                         "slot_evidence": slot_evidence,
-                        "notify_service": notify_service,
+                        "notify_action": notify_action,
                         "device_id": session.device_id,
                         "replies": session.replies,
                         "action": action,
@@ -215,7 +227,7 @@ def ask_question(
                         "tag": tag,
                         "ask_session_id": tag,
                         "slot_evidence": {},
-                        "notify_service": notify_service,
+                        "notify_action": notify_action,
                         "device_id": session.device_id,
                         "replies": session.replies,
                         "action": action,
@@ -232,6 +244,6 @@ def ask_question(
         "id": None,
         "sentence": None,
         "slots": {},
-        "meta": {"channel": "mobile", "tag": tag, "notify_service": notify_service},
+        "meta": {"channel": "mobile", "tag": tag, "notify_action": notify_action},
         "error": ERR_TIMEOUT,
     }

@@ -152,7 +152,7 @@ def run_canonical_demo(
         api_url="https://example.local",
         token="demo-token",
         ask_callable=_ask_callable,
-        notify_service="mobile_app_phone",
+        notify_action="notify.mobile_app_phone",
     )
     flow_result = run_result["flow_result"]
 

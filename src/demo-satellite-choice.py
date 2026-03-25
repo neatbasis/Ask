@@ -12,6 +12,6 @@ print(ask_question(
     spec=spec,
     api_url=cfg.api_url,
     token=cfg.token,
-    notify_service=cfg.notify_service,
+    notify_action=cfg.notify_action,
     satellite_entity_id=cfg.satellite_entity_id,
 ))

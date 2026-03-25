@@ -48,7 +48,7 @@ def test_run_schema_flow_person_profile_v1_canonical_sequence_and_finalize() -> 
         api_url="https://example.local",
         token="token",
         ask_callable=_fake_ask,
-        notify_service="mobile_app_phone",
+        notify_action="notify.mobile_app_phone",
     )
 
     assert called_fields == [

@@ -31,8 +31,8 @@ def test_ha_backed_channels_without_credentials_return_deterministic_error(monke
 
     for channel, kwargs in [
         ("satellite", {}),
-        ("mobile", {"notify_service": "notify.phone"}),
-        ("discord", {"discord_service": "notify.discord"}),
+        ("mobile", {"notify_action": "notify.phone"}),
+        ("discord", {"discord_action": "notify.discord"}),
     ]:
         result = ask_question(channel=channel, spec=_spec(), **kwargs)
         assert result == {
@@ -51,7 +51,7 @@ def test_ha_backed_channels_without_credentials_return_deterministic_error(monke
     ]
 
 
-def test_missing_notify_and_discord_service_behavior_unchanged(monkeypatch):
+def test_missing_notify_and_discord_action_behavior_unchanged(monkeypatch):
     persisted: list[dict] = []
     monkeypatch.setattr(
         "ha_ask.dispatch.persist_ask_session",
@@ -61,12 +61,12 @@ def test_missing_notify_and_discord_service_behavior_unchanged(monkeypatch):
     mobile = ask_question(channel="mobile", spec=_spec(), api_url="http://ha.local", token="token")
     discord = ask_question(channel="discord", spec=_spec(), api_url="http://ha.local", token="token")
 
-    assert mobile["error"] == "missing_notify_service"
-    assert discord["error"] == "missing_discord_service"
+    assert mobile["error"] == "missing_notify_action"
+    assert discord["error"] == "missing_discord_action"
     assert [entry["channel"] for entry in persisted] == ["mobile", "discord"]
 
 
-def test_discord_service_falls_back_to_notify_service(monkeypatch):
+def test_discord_action_falls_back_to_notify_action(monkeypatch):
     expected = {"id": "ok", "sentence": "ok", "slots": {}, "meta": {}, "error": None}
 
     class _DummyClient:
@@ -82,8 +82,8 @@ def test_discord_service_falls_back_to_notify_service(monkeypatch):
     called: dict = {}
     persisted: list[dict] = []
 
-    def _fake_discord(client, ws, spec, notify_service):
-        called["notify_service"] = notify_service
+    def _fake_discord(client, ws, spec, notify_action):
+        called["notify_action"] = notify_action
         return expected
 
     monkeypatch.setattr("ha_ask.dispatch.Client", _DummyClient)
@@ -99,11 +99,11 @@ def test_discord_service_falls_back_to_notify_service(monkeypatch):
         spec=_spec(),
         api_url="http://ha.local",
         token="token",
-        notify_service="notify.mobile_app_phone",
+        notify_action="notify.mobile_app_phone",
     )
 
     assert result == expected
-    assert called["notify_service"] == "notify.mobile_app_phone"
+    assert called["notify_action"] == "notify.mobile_app_phone"
     assert len(persisted) == 1
     assert persisted[0]["result"] == expected
 

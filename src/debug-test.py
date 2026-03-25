@@ -15,7 +15,7 @@ Environment:
   HA_API_URL
   HA_API_SECRET
   (optional) HA_SATELLITE_ENTITY_ID
-  (optional) HA_NOTIFY_SERVICE
+  (optional) HA_NOTIFY_ACTION
 
 Run:
   python3 debug-test.py
@@ -363,9 +363,9 @@ def test_T4_adapter_satellite_answers(cfg: Config) -> None:
 
 def test_T5_adapter_mobile_choice(cfg: Config) -> None:
     section("T5 (ADAPTER) ha_ask ask_question(channel='mobile') choice-mode (expect id yes/no, replies collected)")
-    notify_service = cfg.notify_service or os.environ.get("HA_NOTIFY_SERVICE")
-    if not notify_service:
-        print("[SKIP] No HA_NOTIFY_SERVICE set. Add it to .env to run mobile tests.")
+    notify_action = cfg.notify_action or os.environ.get("HA_NOTIFY_ACTION")
+    if not notify_action:
+        print("[SKIP] No HA_NOTIFY_ACTION set. Add it to .env to run mobile tests.")
         return
 
     spec = AskSpec(
@@ -384,7 +384,7 @@ def test_T5_adapter_mobile_choice(cfg: Config) -> None:
         spec=spec,
         api_url=cfg.api_url,
         token=cfg.token,
-        notify_service=notify_service,
+        notify_action=notify_action,
     )
 
     pp(res)
@@ -397,9 +397,9 @@ def test_T5_adapter_mobile_choice(cfg: Config) -> None:
 
 def test_T6_adapter_mobile_reply(cfg: Config) -> None:
     section("T6 (ADAPTER) ha_ask ask_question(channel='mobile') reply-mode (expect id=None, sentence=last reply)")
-    notify_service = cfg.notify_service or os.environ.get("HA_NOTIFY_SERVICE")
-    if not notify_service:
-        print("[SKIP] No HA_NOTIFY_SERVICE set. Add it to .env to run mobile tests.")
+    notify_action = cfg.notify_action or os.environ.get("HA_NOTIFY_ACTION")
+    if not notify_action:
+        print("[SKIP] No HA_NOTIFY_ACTION set. Add it to .env to run mobile tests.")
         return
 
     spec = AskSpec(
@@ -416,7 +416,7 @@ def test_T6_adapter_mobile_reply(cfg: Config) -> None:
         spec=spec,
         api_url=cfg.api_url,
         token=cfg.token,
-        notify_service=notify_service,
+        notify_action=notify_action,
     )
 
     pp(res)
@@ -441,7 +441,7 @@ def main() -> None:
     print("REST:", rest)
     print("WS:  ", derive_ws_url(cfg.api_url))
     print("SATELLITE_ENTITY_ID:", entity_id)
-    print("NOTIFY_SERVICE:", cfg.notify_service or os.environ.get("HA_NOTIFY_SERVICE"))
+    print("NOTIFY_ACTION:", cfg.notify_action or os.environ.get("HA_NOTIFY_ACTION"))
 
     # Direct tests (satellite)
     with Client(rest, cfg.token) as client:

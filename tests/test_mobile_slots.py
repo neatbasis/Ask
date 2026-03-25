@@ -40,7 +40,7 @@ def test_mobile_choice_maps_answer_slot_bindings_to_slots(monkeypatch):
     )
     monkeypatch.setattr(mobile.uuid, "uuid4", lambda: type("U", (), {"hex": tag})())
 
-    result = mobile.ask_question(client=object(), ws=ws, spec=spec, notify_service="mobile_app_phone")
+    result = mobile.ask_question(client=object(), ws=ws, spec=spec, notify_action="notify.mobile_app_phone")
 
     assert result["id"] == "quiet"
     assert result["slots"] == {"mode": "quiet", "volume": 10}
@@ -67,7 +67,7 @@ def test_persisted_ask_session_contains_prompt_choice_timestamps_replies_and_slo
     )
     monkeypatch.setattr(mobile.uuid, "uuid4", lambda: type("U", (), {"hex": tag})())
 
-    result = mobile.ask_question(client=object(), ws=ws, spec=spec, notify_service="mobile_app_phone")
+    result = mobile.ask_question(client=object(), ws=ws, spec=spec, notify_action="notify.mobile_app_phone")
     ask_session_id = persist_ask_session(channel="mobile", spec=spec, result=result)
     record = get_ask_session(ask_session_id)
 

@@ -77,7 +77,7 @@ def test_schema_flow_persists_draft_transitions_and_finalization_to_sqlite(tmp_p
         api_url="https://example.local",
         token="token",
         ask_callable=_fake_ask,
-        notify_service="mobile_app_phone",
+        notify_action="notify.mobile_app_phone",
     )
 
     with backend._connect() as con:  # noqa: SLF001
