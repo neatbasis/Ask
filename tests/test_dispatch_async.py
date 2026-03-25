@@ -43,7 +43,7 @@ def test_ask_choice_async_delegates_to_sync(monkeypatch):
             choices=[Answer(id="yes", sentences=["yes"], title="Yes")],
             api_url="http://example.test",
             token="token",
-            notify_service="notify.mobile_app_phone",
+            notify_action="notify.mobile_app_phone",
         )
     )
 

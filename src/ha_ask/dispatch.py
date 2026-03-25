@@ -28,8 +28,8 @@ def ask_question(
     spec: AskSpec,
     api_url: Optional[str] = None,
     token: Optional[str] = None,
-    notify_service: Optional[str] = None,
-    discord_service: Optional[str] = None,
+    notify_action: Optional[str] = None,
+    discord_action: Optional[str] = None,
     satellite_entity_id: Optional[str] = None,
 ) -> AskResult:
     result: AskResult
@@ -44,26 +44,26 @@ def ask_question(
             with Client(rest, token) as client:
                 result = satellite_chan.ask_question(client, spec, entity_id=satellite_entity_id)
     elif channel == "mobile":
-        if not notify_service:
-            result = {"id": None, "sentence": None, "slots": {}, "meta": {}, "error": "missing_notify_service"}
+        if not notify_action:
+            result = {"id": None, "sentence": None, "slots": {}, "meta": {}, "error": "missing_notify_action"}
         elif not api_url or not token:
             result = _MISSING_HA_CREDS_RESULT.copy()
         else:
             rest = normalize_rest_api_url(api_url)
             ws_url = derive_ws_url(api_url)
             with Client(rest, token) as client, WebsocketClient(ws_url, token) as ws:
-                result = mobile_chan.ask_question(client, ws, spec, notify_service=notify_service)
+                result = mobile_chan.ask_question(client, ws, spec, notify_action=notify_action)
     elif channel == "discord":
-        service = discord_service or notify_service
+        service = discord_action or notify_action
         if not service:
-            result = {"id": None, "sentence": None, "slots": {}, "meta": {}, "error": "missing_discord_service"}
+            result = {"id": None, "sentence": None, "slots": {}, "meta": {}, "error": "missing_discord_action"}
         elif not api_url or not token:
             result = _MISSING_HA_CREDS_RESULT.copy()
         else:
             rest = normalize_rest_api_url(api_url)
             ws_url = derive_ws_url(api_url)
             with Client(rest, token) as client, WebsocketClient(ws_url, token) as ws:
-                result = discord_chan.ask_question(client, ws, spec, notify_service=service)
+                result = discord_chan.ask_question(client, ws, spec, notify_action=service)
     else:
         result = {"id": None, "sentence": None, "slots": {}, "meta": {}, "error": f"unknown_channel:{channel}"}
 
@@ -77,8 +77,8 @@ async def ask_question_async(
     spec: AskSpec,
     api_url: Optional[str] = None,
     token: Optional[str] = None,
-    notify_service: Optional[str] = None,
-    discord_service: Optional[str] = None,
+    notify_action: Optional[str] = None,
+    discord_action: Optional[str] = None,
     satellite_entity_id: Optional[str] = None,
 ) -> AskResult:
     return await asyncio.to_thread(
@@ -87,8 +87,8 @@ async def ask_question_async(
         spec=spec,
         api_url=api_url,
         token=token,
-        notify_service=notify_service,
-        discord_service=discord_service,
+        notify_action=notify_action,
+        discord_action=discord_action,
         satellite_entity_id=satellite_entity_id,
     )
 
@@ -100,8 +100,8 @@ def ask_choice(
     choices: Sequence[Answer],
     api_url: Optional[str] = None,
     token: Optional[str] = None,
-    notify_service: Optional[str] = None,
-    discord_service: Optional[str] = None,
+    notify_action: Optional[str] = None,
+    discord_action: Optional[str] = None,
     satellite_entity_id: Optional[str] = None,
     allow_replies: bool = False,
     timeout_s: float = 180.0,
@@ -119,8 +119,8 @@ def ask_choice(
         spec=spec,
         api_url=api_url,
         token=token,
-        notify_service=notify_service,
-        discord_service=discord_service,
+        notify_action=notify_action,
+        discord_action=discord_action,
         satellite_entity_id=satellite_entity_id,
     )
 
@@ -132,8 +132,8 @@ async def ask_choice_async(
     choices: Sequence[Answer],
     api_url: Optional[str] = None,
     token: Optional[str] = None,
-    notify_service: Optional[str] = None,
-    discord_service: Optional[str] = None,
+    notify_action: Optional[str] = None,
+    discord_action: Optional[str] = None,
     satellite_entity_id: Optional[str] = None,
     allow_replies: bool = False,
     timeout_s: float = 180.0,
@@ -146,8 +146,8 @@ async def ask_choice_async(
         choices=choices,
         api_url=api_url,
         token=token,
-        notify_service=notify_service,
-        discord_service=discord_service,
+        notify_action=notify_action,
+        discord_action=discord_action,
         satellite_entity_id=satellite_entity_id,
         allow_replies=allow_replies,
         timeout_s=timeout_s,
@@ -161,8 +161,8 @@ def ask_freeform(
     question: str,
     api_url: Optional[str] = None,
     token: Optional[str] = None,
-    notify_service: Optional[str] = None,
-    discord_service: Optional[str] = None,
+    notify_action: Optional[str] = None,
+    discord_action: Optional[str] = None,
     satellite_entity_id: Optional[str] = None,
     expected_slots: Optional[Sequence[str]] = None,
     slot_schema: Optional[dict] = None,
@@ -183,8 +183,8 @@ def ask_freeform(
         spec=spec,
         api_url=api_url,
         token=token,
-        notify_service=notify_service,
-        discord_service=discord_service,
+        notify_action=notify_action,
+        discord_action=discord_action,
         satellite_entity_id=satellite_entity_id,
     )
 
@@ -195,8 +195,8 @@ async def ask_freeform_async(
     question: str,
     api_url: Optional[str] = None,
     token: Optional[str] = None,
-    notify_service: Optional[str] = None,
-    discord_service: Optional[str] = None,
+    notify_action: Optional[str] = None,
+    discord_action: Optional[str] = None,
     satellite_entity_id: Optional[str] = None,
     expected_slots: Optional[Sequence[str]] = None,
     slot_schema: Optional[dict] = None,
@@ -209,8 +209,8 @@ async def ask_freeform_async(
         question=question,
         api_url=api_url,
         token=token,
-        notify_service=notify_service,
-        discord_service=discord_service,
+        notify_action=notify_action,
+        discord_action=discord_action,
         satellite_entity_id=satellite_entity_id,
         expected_slots=expected_slots,
         slot_schema=slot_schema,
