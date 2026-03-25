@@ -1,7 +1,7 @@
 # ha_ask/types.py
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Dict, Literal, Mapping, Optional, Sequence, TypedDict
 
 
@@ -36,6 +36,13 @@ Choice = Answer  # optional backwards alias
 
 @dataclass(frozen=True)
 class AskSpec:
+    """
+    Legacy/general spec kept for transition compatibility.
+
+    Prefer using `ChoiceSpec` for constrained answer selection and
+    `FreeformSpec` for open-ended replies in new code.
+    """
+
     question: str
     answers: Optional[Sequence[Answer]] = None
     expected_slots: Optional[Sequence[str]] = None
@@ -47,6 +54,31 @@ class AskSpec:
 
     timeout_s: float = 180.0
     title: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class ChoiceSpec(AskSpec):
+    """
+    Choice-oriented ask spec.
+
+    This narrows `answers` to a required sequence while preserving
+    full `AskSpec` compatibility at runtime and call sites.
+    """
+
+    answers: Sequence[Answer] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True)
+class FreeformSpec(AskSpec):
+    """
+    Free-form ask spec.
+
+    This keeps `answers` disabled and defaults to expecting a user reply.
+    """
+
+    answers: None = None
+    expect_reply: bool = True
+    allow_replies: bool = True
 
 
 EvidenceSource = Literal["ask_session"]

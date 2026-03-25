@@ -1,5 +1,5 @@
 # ha_ask/__init__.py
-from .types import AskSpec, Answer
+from .types import AskSpec, Answer, ChoiceSpec, FreeformSpec
 from .dispatch import (
     ask_choice,
     ask_choice_async,
@@ -21,3 +21,7 @@ from .reporting import build_draft_report
 
 from .schema_flow import run_schema_flow, SchemaFlowResult
 from .canonical_demo import load_demo_constants, run_canonical_demo
+
+# Back-compat export during spec migration:
+# - Prefer `ChoiceSpec` / `FreeformSpec` in new code.
+# - `AskSpec` remains supported for existing integrations.
