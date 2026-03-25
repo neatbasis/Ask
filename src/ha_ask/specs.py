@@ -1,9 +1,9 @@
 # ha_ask/specs.py
 from __future__ import annotations
 
-from typing import Iterable, Optional, Sequence
+from typing import Optional, Sequence
 
-from .types import AskSpec, Answer
+from .types import Answer, ChoiceSpec
 
 
 def yes_no_spec(
@@ -15,9 +15,9 @@ def yes_no_spec(
     # Extend/override vocab
     yes: Optional[Sequence[str]] = None,
     no: Optional[Sequence[str]] = None,
-) -> AskSpec:
+) -> ChoiceSpec:
     """
-    Reusable Yes/No AskSpec (Assist-native).
+    Reusable Yes/No choice spec (Assist-native).
 
     - Works for satellite (answers matching) and mobile (buttons via Answer.title).
     - Add synonyms to reduce 'id=None' due to natural variants ("yep", "ok", etc.).
@@ -33,7 +33,7 @@ def yes_no_spec(
     yes_sents = list(dict.fromkeys((yes or yes_default)))  # de-dupe, keep order
     no_sents = list(dict.fromkeys((no or no_default)))
 
-    return AskSpec(
+    return ChoiceSpec(
         question=question,
         answers=[
             Answer("yes", yes_sents, title="Yes"),
