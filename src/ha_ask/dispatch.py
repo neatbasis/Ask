@@ -1,8 +1,8 @@
 import asyncio
-from typing import Literal, Optional
+from typing import Literal, Optional, Sequence
 from homeassistant_api import Client, WebsocketClient
 
-from .types import AskSpec, AskResult
+from .types import Answer, AskSpec, AskResult
 from .config import normalize_rest_api_url, derive_ws_url
 from .channels import satellite as satellite_chan
 from .channels import mobile as mobile_chan
@@ -76,4 +76,130 @@ async def ask_question_async(
         notify_service=notify_service,
         discord_service=discord_service,
         satellite_entity_id=satellite_entity_id,
+    )
+
+
+def ask_choice(
+    *,
+    channel: Channel,
+    question: str,
+    choices: Sequence[Answer],
+    api_url: str,
+    token: str,
+    notify_service: Optional[str] = None,
+    discord_service: Optional[str] = None,
+    satellite_entity_id: Optional[str] = None,
+    allow_replies: bool = False,
+    timeout_s: float = 180.0,
+    title: Optional[str] = None,
+) -> AskResult:
+    spec = AskSpec(
+        question=question,
+        answers=choices,
+        allow_replies=allow_replies,
+        timeout_s=timeout_s,
+        title=title,
+    )
+    return ask_question(
+        channel=channel,
+        spec=spec,
+        api_url=api_url,
+        token=token,
+        notify_service=notify_service,
+        discord_service=discord_service,
+        satellite_entity_id=satellite_entity_id,
+    )
+
+
+async def ask_choice_async(
+    *,
+    channel: Channel,
+    question: str,
+    choices: Sequence[Answer],
+    api_url: str,
+    token: str,
+    notify_service: Optional[str] = None,
+    discord_service: Optional[str] = None,
+    satellite_entity_id: Optional[str] = None,
+    allow_replies: bool = False,
+    timeout_s: float = 180.0,
+    title: Optional[str] = None,
+) -> AskResult:
+    return await asyncio.to_thread(
+        ask_choice,
+        channel=channel,
+        question=question,
+        choices=choices,
+        api_url=api_url,
+        token=token,
+        notify_service=notify_service,
+        discord_service=discord_service,
+        satellite_entity_id=satellite_entity_id,
+        allow_replies=allow_replies,
+        timeout_s=timeout_s,
+        title=title,
+    )
+
+
+def ask_freeform(
+    *,
+    channel: Channel,
+    question: str,
+    api_url: str,
+    token: str,
+    notify_service: Optional[str] = None,
+    discord_service: Optional[str] = None,
+    satellite_entity_id: Optional[str] = None,
+    expected_slots: Optional[Sequence[str]] = None,
+    slot_schema: Optional[dict] = None,
+    timeout_s: float = 180.0,
+    title: Optional[str] = None,
+) -> AskResult:
+    spec = AskSpec(
+        question=question,
+        expected_slots=expected_slots,
+        slot_schema=slot_schema,
+        expect_reply=True,
+        allow_replies=True,
+        timeout_s=timeout_s,
+        title=title,
+    )
+    return ask_question(
+        channel=channel,
+        spec=spec,
+        api_url=api_url,
+        token=token,
+        notify_service=notify_service,
+        discord_service=discord_service,
+        satellite_entity_id=satellite_entity_id,
+    )
+
+
+async def ask_freeform_async(
+    *,
+    channel: Channel,
+    question: str,
+    api_url: str,
+    token: str,
+    notify_service: Optional[str] = None,
+    discord_service: Optional[str] = None,
+    satellite_entity_id: Optional[str] = None,
+    expected_slots: Optional[Sequence[str]] = None,
+    slot_schema: Optional[dict] = None,
+    timeout_s: float = 180.0,
+    title: Optional[str] = None,
+) -> AskResult:
+    return await asyncio.to_thread(
+        ask_freeform,
+        channel=channel,
+        question=question,
+        api_url=api_url,
+        token=token,
+        notify_service=notify_service,
+        discord_service=discord_service,
+        satellite_entity_id=satellite_entity_id,
+        expected_slots=expected_slots,
+        slot_schema=slot_schema,
+        timeout_s=timeout_s,
+        title=title,
     )

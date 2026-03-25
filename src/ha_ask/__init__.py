@@ -1,6 +1,13 @@
 # ha_ask/__init__.py
 from .types import AskSpec, Answer
-from .dispatch import ask_question, ask_question_async
+from .dispatch import (
+    ask_choice,
+    ask_choice_async,
+    ask_freeform,
+    ask_freeform_async,
+    ask_question,
+    ask_question_async,
+)
 from .specs import yes_no_spec
 from .errors import (
     ERR_NO_MATCH, ERR_NO_RESPONSE, ERR_TIMEOUT,
