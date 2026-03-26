@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from datetime import datetime
 from typing import Any, Dict, Iterable, List, Mapping, TypedDict
 
@@ -139,4 +140,20 @@ def build_draft_report(payload: DraftReportInput) -> Dict[str, Any]:
     }
 
 
-__all__ = ["build_draft_report"]
+def main() -> int:
+    """Deprecated CLI entrypoint kept only to provide migration guidance."""
+    print(
+        (
+            "ask.reporting is a reporting helper module, not the supported demo CLI.\n"
+            "Run: python -m ask.demo --output artifacts/demo_report.json"
+        ),
+        file=sys.stderr,
+    )
+    return 2
+
+
+__all__ = ["build_draft_report", "main"]
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

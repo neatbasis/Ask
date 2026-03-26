@@ -4,7 +4,7 @@ import json
 import re
 from pathlib import Path
 
-from ha_ask.canonical_demo import load_demo_constants, run_canonical_demo
+from ha_ask.demo import load_demo_constants, run_demo
 from ha_ask.evidence import REQUIRED_EVIDENCE_KEYS_BY_FIELD
 
 
@@ -46,17 +46,17 @@ def test_load_demo_constants_reads_markdown_contract() -> None:
         "preferred_contact_method",
         "timezone",
     ]
-    assert constants["canonical_answers"] == {
+    assert constants["demo_answers"] == {
         "consent_to_contact": "consent_yes",
         "preferred_contact_method": "contact_email",
         "timezone": "America/Los_Angeles",
     }
 
 
-def test_run_canonical_demo_writes_report_and_validates_expected_final_json(tmp_path: Path) -> None:
+def test_run_demo_writes_report_and_validates_expected_final_json(tmp_path: Path) -> None:
     output_path = tmp_path / "demo_report.json"
 
-    result = run_canonical_demo(report_output_path=output_path)
+    result = run_demo(report_output_path=output_path)
 
     assert result["flow_result"]["final_object"] == {
         "full_name": "Alex Kim",
@@ -77,8 +77,8 @@ def test_run_canonical_demo_writes_report_and_validates_expected_final_json(tmp_
     assert evidence["timezone"]["raw_reply"] == "America/Los_Angeles"
 
 
-def test_run_canonical_demo_evidence_contract_contains_required_keys_by_mode() -> None:
-    result = run_canonical_demo()
+def test_run_demo_evidence_contract_contains_required_keys_by_mode() -> None:
+    result = run_demo()
     constants = load_demo_constants("docs/demo_scenario.md")
 
     required_keys_by_mode = {
@@ -119,18 +119,18 @@ def test_required_evidence_keys_align_with_demo_scenario_section_5_and_are_prese
     required_by_field = _required_evidence_keys_from_demo_contract("docs/demo_scenario.md")
     assert required_by_field == REQUIRED_EVIDENCE_KEYS_BY_FIELD
 
-    result = run_canonical_demo()
+    result = run_demo()
     evidence = result["flow_result"]["evidence_map"]
 
     for field_path, required_keys in required_by_field.items():
         assert required_keys.issubset(set(evidence[field_path].keys()))
 
 
-def test_canonical_demo_cli_main_writes_report(tmp_path: Path, monkeypatch) -> None:
-    from ha_ask.canonical_demo import main
+def test_demo_cli_main_writes_report(tmp_path: Path, monkeypatch) -> None:
+    from ha_ask.demo import main
 
     output_path = tmp_path / "cli_report.json"
-    monkeypatch.setattr("sys.argv", ["canonical_demo", "--output", str(output_path)])
+    monkeypatch.setattr("sys.argv", ["demo", "--output", str(output_path)])
 
     exit_code = main()
 

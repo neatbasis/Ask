@@ -63,13 +63,15 @@ Run lint checks (optional):
 ruff check src tests
 ```
 
-## Demo command
+## Supported demo command
 
-Run the canonical demo flow and generate the consolidated artifact:
+Run the supported demo flow and generate the consolidated artifact:
 
 ```bash
-python -m ask.reporting > artifacts/demo_report.json
+python -m ask.demo --output artifacts/demo_report.json
 ```
+
+`ask.reporting` is a reporting helper module (`build_draft_report`) and is not the supported runnable demo CLI.
 
 ### Terminal scenario demo
 
@@ -81,11 +83,11 @@ python -m ask.demo_terminal_scenarios
 
 ### Validation contract
 
-See the canonical scenario definition in [`docs/demo_scenario.md`](docs/demo_scenario.md).
+See the reference scenario definition in [`docs/demo_scenario.md`](docs/demo_scenario.md).
 
 The demo validation contract is:
 
-1. The demo must use the canonical scenario inputs and channel expectations from `docs/demo_scenario.md`.
+1. The demo must use the reference scenario inputs and channel expectations from `docs/demo_scenario.md`.
 2. The generated artifact must include the minimum contract fields: `draft_lifecycle_timeline`, `per_question_latency`, `field_evidence_provenance`, and `retry_and_churn`.
 3. Users should be able to quickly inspect artifact structure with:
 
@@ -208,9 +210,9 @@ cfg = Config(
 
 `load_config()` remains available as a deprecated compatibility wrapper. Prefer `Config(...)` for explicit configuration, or `Config.from_env()` when reading Home Assistant transport settings from environment variables.
 
-## Demonstrate artifact generation (canonical demo)
+## Demonstrate artifact generation (supported demo)
 
-This is the fastest way to generate the canonical demo artifact described in `docs/demo_scenario.md`.
+This is the fastest way to generate the reference demo artifact described in `docs/demo_scenario.md`.
 
 ### Prerequisites
 
@@ -223,7 +225,7 @@ If you are using environment-backed config (`Config.from_env()`), set:
 ### Run this exact command
 
 ```bash
-python -m ask.canonical_demo --output artifacts/demo_report.json
+python -m ask.demo --output artifacts/demo_report.json
 ```
 
 ### Success looks like
@@ -231,12 +233,16 @@ python -m ask.canonical_demo --output artifacts/demo_report.json
 You should see a confirmation line such as:
 
 ```text
-Wrote canonical demo artifact to artifacts/demo_report.json
+Wrote demo report to artifacts/demo_report.json
 ```
 
 The artifact file is written to:
 
 - `artifacts/demo_report.json`
+
+### Other demo scripts in `src/`
+
+`src/demo.py` and `src/demo-satellite-choice.py` are local example scripts for manual Home Assistant testing. They are not the supported repository demo flow and require environment-based configuration (`Config.from_env()`).
 
 Open the JSON and verify key contract fields exist, for example:
 
