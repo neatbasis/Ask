@@ -217,7 +217,7 @@ def run_canonical_demo(
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run the canonical demo scenario from docs/demo_scenario.md"
+        description="Run the reference demo scenario from docs/demo_scenario.md"
     )
     parser.add_argument("--docs", default="docs/demo_scenario.md", help="Path to scenario markdown")
     parser.add_argument(

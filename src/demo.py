@@ -1,8 +1,8 @@
-"""Local satellite example script (non-canonical demo path).
+"""Local satellite example script (not the supported demo path).
 
 This script is runnable when Home Assistant environment variables are set.
-The canonical repository demo flow is:
-    python -m ask.canonical_demo --output artifacts/demo_report.json
+The supported repository demo flow is:
+    python -m ask.demo --output artifacts/demo_report.json
 """
 
 from ask import AskClient, AskSpec

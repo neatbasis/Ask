@@ -1,4 +1,4 @@
-"""Preferred canonical demo module for Ask."""
+"""Compatibility alias for the supported Ask demo module."""
 
 from ha_ask.canonical_demo import load_demo_constants, main, run_canonical_demo
 

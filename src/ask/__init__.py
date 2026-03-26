@@ -36,6 +36,7 @@ from ha_ask import (
     load_demo_constants,
     plan_questions,
     run_canonical_demo,
+    run_demo,
     run_schema_flow,
     yes_no_spec,
 )
@@ -75,5 +76,6 @@ __all__ = [
     "run_schema_flow",
     "SchemaFlowResult",
     "load_demo_constants",
+    "run_demo",
     "run_canonical_demo",
 ]

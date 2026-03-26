@@ -144,8 +144,8 @@ def main() -> int:
     """Deprecated CLI entrypoint kept only to provide migration guidance."""
     print(
         (
-            "ask.reporting is no longer the canonical demo CLI entrypoint.\n"
-            "Run: python -m ask.canonical_demo --output artifacts/demo_report.json"
+            "ask.reporting is a reporting helper module, not the supported demo CLI.\n"
+            "Run: python -m ask.demo --output artifacts/demo_report.json"
         ),
         file=sys.stderr,
     )
