@@ -26,6 +26,8 @@ def ask_question(
     *,
     channel: Channel,
     spec: AskSpec,
+    ha_api_url: Optional[str] = None,
+    ha_api_token: Optional[str] = None,
     api_url: Optional[str] = None,
     token: Optional[str] = None,
     notify_action: Optional[str] = None,
@@ -38,10 +40,13 @@ def ask_question(
     Args:
         channel: Transport channel (`"terminal"`, `"satellite"`, `"mobile"`, or `"discord"`).
         spec: Fully constructed ask specification.
-        api_url: Home Assistant base URL used by Home Assistant-backed channels.
-            This remains the Home Assistant URL, not a Discord service URL.
-        token: Home Assistant long-lived token. For Discord channel usage this is
-            passed through as an optional bearer token to the Discord turn service.
+        ha_api_url: Preferred Home Assistant base URL used by Home Assistant-backed
+            channels. This remains the Home Assistant URL, not a Discord service URL.
+        ha_api_token: Preferred Home Assistant long-lived token. For Discord channel
+            usage this is passed through as an optional bearer token to the Discord
+            turn service.
+        api_url: Compatibility alias for `ha_api_url`.
+        token: Compatibility alias for `ha_api_token`.
         notify_action: Home Assistant action string used for mobile notifications.
             For compatibility, Discord dispatch may also fall back to this value
             when `discord_action` is not provided.
@@ -76,25 +81,27 @@ def ask_question(
             `channel="satellite"`.
     """
     result: AskResult
+    resolved_api_url = ha_api_url if ha_api_url is not None else api_url
+    resolved_token = ha_api_token if ha_api_token is not None else token
 
     if channel == "terminal":
         result = terminal_chan.ask_question(spec)
     elif channel == "satellite":
-        if not api_url or not token:
+        if not resolved_api_url or not resolved_token:
             result = _MISSING_HA_CREDS_RESULT.copy()
         else:
-            rest = normalize_rest_api_url(api_url)
-            with Client(rest, token) as client:
+            rest = normalize_rest_api_url(resolved_api_url)
+            with Client(rest, resolved_token) as client:
                 result = satellite_chan.ask_question(client, spec, entity_id=satellite_entity_id)
     elif channel == "mobile":
         if not notify_action:
             result = {"id": None, "sentence": None, "slots": {}, "meta": {}, "error": "missing_notify_action"}
-        elif not api_url or not token:
+        elif not resolved_api_url or not resolved_token:
             result = _MISSING_HA_CREDS_RESULT.copy()
         else:
-            rest = normalize_rest_api_url(api_url)
-            ws_url = derive_ws_url(api_url)
-            with Client(rest, token) as client, WebsocketClient(ws_url, token) as ws:
+            rest = normalize_rest_api_url(resolved_api_url)
+            ws_url = derive_ws_url(resolved_api_url)
+            with Client(rest, resolved_token) as client, WebsocketClient(ws_url, resolved_token) as ws:
                 result = mobile_chan.ask_question(client, ws, spec, notify_action=notify_action)
     elif channel == "discord":
         recipient = discord_action or notify_action
@@ -107,7 +114,7 @@ def ask_question(
                 spec=spec,
                 service_url=discord_turn_service_url,
                 recipient=recipient,
-                bearer_token=token,
+                bearer_token=resolved_token,
             )
     else:
         result = {"id": None, "sentence": None, "slots": {}, "meta": {}, "error": f"unknown_channel:{channel}"}
@@ -120,6 +127,8 @@ async def ask_question_async(
     *,
     channel: Channel,
     spec: AskSpec,
+    ha_api_url: Optional[str] = None,
+    ha_api_token: Optional[str] = None,
     api_url: Optional[str] = None,
     token: Optional[str] = None,
     notify_action: Optional[str] = None,
@@ -141,6 +150,8 @@ async def ask_question_async(
         ask_question,
         channel=channel,
         spec=spec,
+        ha_api_url=ha_api_url,
+        ha_api_token=ha_api_token,
         api_url=api_url,
         token=token,
         notify_action=notify_action,
@@ -155,6 +166,8 @@ def ask_choice(
     channel: Channel,
     question: str,
     choices: Sequence[Answer],
+    ha_api_url: Optional[str] = None,
+    ha_api_token: Optional[str] = None,
     api_url: Optional[str] = None,
     token: Optional[str] = None,
     notify_action: Optional[str] = None,
@@ -174,7 +187,8 @@ def ask_choice(
           `notify_action` still applies when `discord_action` is omitted.
         - `discord_turn_service_url` is the DiscordTurnService base URL used only
           when `channel="discord"` and is required for Discord channel usage.
-        - `api_url` remains the Home Assistant URL.
+        - `ha_api_url` / `ha_api_token` are the preferred Home Assistant transport names.
+        - `api_url` / `token` remain compatibility aliases.
     """
     spec = AskSpec(
         question=question,
@@ -186,6 +200,8 @@ def ask_choice(
     return ask_question(
         channel=channel,
         spec=spec,
+        ha_api_url=ha_api_url,
+        ha_api_token=ha_api_token,
         api_url=api_url,
         token=token,
         notify_action=notify_action,
@@ -200,6 +216,8 @@ async def ask_choice_async(
     channel: Channel,
     question: str,
     choices: Sequence[Answer],
+    ha_api_url: Optional[str] = None,
+    ha_api_token: Optional[str] = None,
     api_url: Optional[str] = None,
     token: Optional[str] = None,
     notify_action: Optional[str] = None,
@@ -221,6 +239,8 @@ async def ask_choice_async(
         channel=channel,
         question=question,
         choices=choices,
+        ha_api_url=ha_api_url,
+        ha_api_token=ha_api_token,
         api_url=api_url,
         token=token,
         notify_action=notify_action,
@@ -237,6 +257,8 @@ def ask_freeform(
     *,
     channel: Channel,
     question: str,
+    ha_api_url: Optional[str] = None,
+    ha_api_token: Optional[str] = None,
     api_url: Optional[str] = None,
     token: Optional[str] = None,
     notify_action: Optional[str] = None,
@@ -256,7 +278,8 @@ def ask_freeform(
           If omitted, current compatibility behavior may fall back to `notify_action`.
         - `discord_turn_service_url` is the DiscordTurnService base URL required
           when `channel="discord"`.
-        - `api_url` is still the Home Assistant URL.
+        - `ha_api_url` / `ha_api_token` are the preferred Home Assistant transport names.
+        - `api_url` / `token` remain compatibility aliases.
     """
     spec = AskSpec(
         question=question,
@@ -270,6 +293,8 @@ def ask_freeform(
     return ask_question(
         channel=channel,
         spec=spec,
+        ha_api_url=ha_api_url,
+        ha_api_token=ha_api_token,
         api_url=api_url,
         token=token,
         notify_action=notify_action,
@@ -283,6 +308,8 @@ async def ask_freeform_async(
     *,
     channel: Channel,
     question: str,
+    ha_api_url: Optional[str] = None,
+    ha_api_token: Optional[str] = None,
     api_url: Optional[str] = None,
     token: Optional[str] = None,
     notify_action: Optional[str] = None,
@@ -305,6 +332,8 @@ async def ask_freeform_async(
         ask_freeform,
         channel=channel,
         question=question,
+        ha_api_url=ha_api_url,
+        ha_api_token=ha_api_token,
         api_url=api_url,
         token=token,
         notify_action=notify_action,

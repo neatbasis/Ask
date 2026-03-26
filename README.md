@@ -275,8 +275,8 @@ from ask import ask_question, AskSpec
 res = ask_question(
     channel="satellite",
     spec=AskSpec(question="Proceed?"),
-    api_url="https://home.example.com",
-    token="YOUR_LONG_LIVED_TOKEN",
+    ha_api_url="https://home.example.com",
+    ha_api_token="YOUR_LONG_LIVED_TOKEN",
 )
 ```
 
@@ -291,7 +291,9 @@ res = ask_question(
   * `"mobile"`: sends actionable notification and listens for response events
   * `"discord"`: sends prompt via Discord turn service
 * `spec` (`AskSpec`): question + answers + behavior flags
-* `api_url`, `token`: compatibility names for Home Assistant REST base URL and long-lived token (`api_url` is not the Discord turn service URL). Prefer configuring `ha_api_url` / `ha_api_token` on `Config` and using `AskClient`.
+* `ha_api_url`, `ha_api_token`: preferred helper names for Home Assistant REST base URL and long-lived token.
+* `api_url`, `token`: compatibility aliases for the same Home Assistant values (`api_url` is not the Discord turn service URL).
+* precedence rule when both styles are present: `ha_api_url` / `ha_api_token` win, then `api_url` / `token`.
 * `satellite_entity_id`: required for satellite unless you set `HA_SATELLITE_ENTITY_ID` or rely on your library default
 * `notify_action`: Home Assistant action string used for mobile unless you set `HA_NOTIFY_ACTION`
 * `discord_action`: Discord recipient reference used only for `channel="discord"`; expected format:

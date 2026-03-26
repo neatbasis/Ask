@@ -9,6 +9,10 @@ def test_ask_question_async_delegates_to_sync(monkeypatch):
 
     def _fake_ask_question(**kwargs):
         assert kwargs["channel"] == "satellite"
+        assert kwargs["ha_api_url"] == "http://preferred.test"
+        assert kwargs["ha_api_token"] == "preferred-token"
+        assert kwargs["api_url"] == "http://legacy.test"
+        assert kwargs["token"] == "legacy-token"
         return expected
 
     monkeypatch.setattr("ha_ask.dispatch.ask_question", _fake_ask_question)
@@ -17,8 +21,10 @@ def test_ask_question_async_delegates_to_sync(monkeypatch):
         ask_question_async(
             channel="satellite",
             spec=AskSpec(question="Q"),
-            api_url="http://example.test",
-            token="token",
+            ha_api_url="http://preferred.test",
+            ha_api_token="preferred-token",
+            api_url="http://legacy.test",
+            token="legacy-token",
         )
     )
 

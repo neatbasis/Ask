@@ -65,6 +65,8 @@ class AskClient:
         *,
         channel: Channel,
         spec: AskSpec,
+        ha_api_url: Optional[str] = None,
+        ha_api_token: Optional[str] = None,
         api_url: Optional[str] = None,
         token: Optional[str] = None,
         notify_action: Optional[str] = None,
@@ -73,12 +75,18 @@ class AskClient:
         satellite_entity_id: Optional[str] = None,
     ) -> AskResult:
         from .dispatch import ask_question
+        resolved_api_url = (
+            ha_api_url if ha_api_url is not None else (api_url if api_url is not None else self.config.ha_api_url)
+        )
+        resolved_token = (
+            ha_api_token if ha_api_token is not None else (token if token is not None else self.config.ha_api_token)
+        )
 
         return ask_question(
             channel=channel,
             spec=spec,
-            api_url=api_url if api_url is not None else self.config.ha_api_url,
-            token=token if token is not None else self.config.ha_api_token,
+            api_url=resolved_api_url,
+            token=resolved_token,
             notify_action=notify_action if notify_action is not None else self.config.notify_action,
             discord_action=discord_action,
             discord_turn_service_url=(
@@ -98,6 +106,8 @@ class AskClient:
         *,
         channel: Channel,
         spec: AskSpec,
+        ha_api_url: Optional[str] = None,
+        ha_api_token: Optional[str] = None,
         api_url: Optional[str] = None,
         token: Optional[str] = None,
         notify_action: Optional[str] = None,
@@ -106,12 +116,18 @@ class AskClient:
         satellite_entity_id: Optional[str] = None,
     ) -> AskResult:
         from .dispatch import ask_question_async
+        resolved_api_url = (
+            ha_api_url if ha_api_url is not None else (api_url if api_url is not None else self.config.ha_api_url)
+        )
+        resolved_token = (
+            ha_api_token if ha_api_token is not None else (token if token is not None else self.config.ha_api_token)
+        )
 
         return await ask_question_async(
             channel=channel,
             spec=spec,
-            api_url=api_url if api_url is not None else self.config.ha_api_url,
-            token=token if token is not None else self.config.ha_api_token,
+            api_url=resolved_api_url,
+            token=resolved_token,
             notify_action=notify_action if notify_action is not None else self.config.notify_action,
             discord_action=discord_action,
             discord_turn_service_url=(
@@ -132,6 +148,8 @@ class AskClient:
         channel: Channel,
         question: str,
         choices: Sequence[Answer],
+        ha_api_url: Optional[str] = None,
+        ha_api_token: Optional[str] = None,
         api_url: Optional[str] = None,
         token: Optional[str] = None,
         notify_action: Optional[str] = None,
@@ -143,13 +161,19 @@ class AskClient:
         title: Optional[str] = None,
     ) -> AskResult:
         from .dispatch import ask_choice
+        resolved_api_url = (
+            ha_api_url if ha_api_url is not None else (api_url if api_url is not None else self.config.ha_api_url)
+        )
+        resolved_token = (
+            ha_api_token if ha_api_token is not None else (token if token is not None else self.config.ha_api_token)
+        )
 
         return ask_choice(
             channel=channel,
             question=question,
             choices=choices,
-            api_url=api_url if api_url is not None else self.config.ha_api_url,
-            token=token if token is not None else self.config.ha_api_token,
+            api_url=resolved_api_url,
+            token=resolved_token,
             notify_action=notify_action if notify_action is not None else self.config.notify_action,
             discord_action=discord_action,
             discord_turn_service_url=(
@@ -173,6 +197,8 @@ class AskClient:
         channel: Channel,
         question: str,
         choices: Sequence[Answer],
+        ha_api_url: Optional[str] = None,
+        ha_api_token: Optional[str] = None,
         api_url: Optional[str] = None,
         token: Optional[str] = None,
         notify_action: Optional[str] = None,
@@ -184,13 +210,19 @@ class AskClient:
         title: Optional[str] = None,
     ) -> AskResult:
         from .dispatch import ask_choice_async
+        resolved_api_url = (
+            ha_api_url if ha_api_url is not None else (api_url if api_url is not None else self.config.ha_api_url)
+        )
+        resolved_token = (
+            ha_api_token if ha_api_token is not None else (token if token is not None else self.config.ha_api_token)
+        )
 
         return await ask_choice_async(
             channel=channel,
             question=question,
             choices=choices,
-            api_url=api_url if api_url is not None else self.config.ha_api_url,
-            token=token if token is not None else self.config.ha_api_token,
+            api_url=resolved_api_url,
+            token=resolved_token,
             notify_action=notify_action if notify_action is not None else self.config.notify_action,
             discord_action=discord_action,
             discord_turn_service_url=(
@@ -213,6 +245,8 @@ class AskClient:
         *,
         channel: Channel,
         question: str,
+        ha_api_url: Optional[str] = None,
+        ha_api_token: Optional[str] = None,
         api_url: Optional[str] = None,
         token: Optional[str] = None,
         notify_action: Optional[str] = None,
@@ -225,12 +259,18 @@ class AskClient:
         title: Optional[str] = None,
     ) -> AskResult:
         from .dispatch import ask_freeform
+        resolved_api_url = (
+            ha_api_url if ha_api_url is not None else (api_url if api_url is not None else self.config.ha_api_url)
+        )
+        resolved_token = (
+            ha_api_token if ha_api_token is not None else (token if token is not None else self.config.ha_api_token)
+        )
 
         return ask_freeform(
             channel=channel,
             question=question,
-            api_url=api_url if api_url is not None else self.config.ha_api_url,
-            token=token if token is not None else self.config.ha_api_token,
+            api_url=resolved_api_url,
+            token=resolved_token,
             notify_action=notify_action if notify_action is not None else self.config.notify_action,
             discord_action=discord_action,
             discord_turn_service_url=(
@@ -254,6 +294,8 @@ class AskClient:
         *,
         channel: Channel,
         question: str,
+        ha_api_url: Optional[str] = None,
+        ha_api_token: Optional[str] = None,
         api_url: Optional[str] = None,
         token: Optional[str] = None,
         notify_action: Optional[str] = None,
@@ -266,12 +308,18 @@ class AskClient:
         title: Optional[str] = None,
     ) -> AskResult:
         from .dispatch import ask_freeform_async
+        resolved_api_url = (
+            ha_api_url if ha_api_url is not None else (api_url if api_url is not None else self.config.ha_api_url)
+        )
+        resolved_token = (
+            ha_api_token if ha_api_token is not None else (token if token is not None else self.config.ha_api_token)
+        )
 
         return await ask_freeform_async(
             channel=channel,
             question=question,
-            api_url=api_url if api_url is not None else self.config.ha_api_url,
-            token=token if token is not None else self.config.ha_api_token,
+            api_url=resolved_api_url,
+            token=resolved_token,
             notify_action=notify_action if notify_action is not None else self.config.notify_action,
             discord_action=discord_action,
             discord_turn_service_url=(
