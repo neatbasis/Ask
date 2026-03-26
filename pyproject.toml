@@ -3,7 +3,7 @@ requires = ["setuptools>=69", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ha-ask"
+name = "ask"
 version = "0.1.0"
 description = "Ask questions via Home Assistant (Assist Satellite + Mobile actionable notifications), returning Assist-compatible results."
 readme = "README.md"
@@ -35,6 +35,7 @@ Repository = "https://git.sebastianmaki.fi/sebastian/Ask"  # change to your Gite
 Issues = "https://git.sebastianmaki.fi/sebastian/Ask/issues"
 
 [project.scripts]
+ask-canonical-demo = "ask.canonical_demo:main"
 ha-ask-canonical-demo = "ha_ask.canonical_demo:main"
 
 
@@ -60,7 +61,7 @@ include-package-data = true
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["ha_ask*"]
+include = ["ha_ask*", "ask*"]
 exclude = ["tests*", "dist*", "build*", "*.egg-info*"]
 
 # If you include type hints, this makes "ha_ask" PEP 561 compliant when you add py.typed.

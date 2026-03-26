@@ -1,12 +1,21 @@
-## `ha_ask` — Ask questions via Home Assistant (Satellite + Mobile + Terminal)
+## `ask` — Ask questions across Home Assistant, terminal, and Discord
 
-`ha_ask` provides a configured object API (`AskClient`) and compatibility helper functions (`ask_question()`, etc.) that can ask through different **channels**:
+`ask` provides a configured object API (`AskClient`) and compatibility helper functions (`ask_question()`, etc.) that can ask through different **channels**:
 
 * **satellite**: uses Home Assistant’s `assist_satellite.ask_question` service (speech → classified answer + slot capture)
 * **mobile**: uses actionable notifications + websocket events (buttons and/or free-form reply)
 * **terminal**: local terminal interaction with freeform input + interactive multichoice picker (with typed fallback)
 
 The return value is **Assist-compatible**: `id`, `sentence`, and `slots` follow the same semantics as `assist_satellite.ask_question`. Any transport/UI metadata is returned separately under `meta`.
+
+`ask` is the preferred package name for new code. `ha_ask` remains supported as a compatibility import path during migration.
+
+Compatibility imports continue to work:
+
+```python
+from ha_ask import AskClient, AskSpec, Answer
+from ha_ask.config import Config
+```
 
 ---
 
@@ -65,7 +74,7 @@ ruff check src tests
 Run the canonical demo flow and generate the consolidated artifact:
 
 ```bash
-python -m ha_ask.reporting > artifacts/demo_report.json
+python -m ask.reporting > artifacts/demo_report.json
 ```
 
 ### Validation contract
@@ -87,7 +96,7 @@ The demo validation contract is:
 Primary usage is to construct `Config(...)` directly in code:
 
 ```python
-from ha_ask.config import Config
+from ask.config import Config
 
 cfg = Config(
     ha_api_url="https://home.example.com",
@@ -101,7 +110,7 @@ cfg = Config(
 For environment-backed deployments, use `Config.from_env()`:
 
 ```python
-from ha_ask.config import Config
+from ask.config import Config
 
 cfg = Config.from_env()  # loads Home Assistant transport config
 ```
@@ -111,8 +120,8 @@ cfg = Config.from_env()  # loads Home Assistant transport config
 Use `Config` as your long-lived transport configuration and `AskClient` as your call surface:
 
 ```python
-from ha_ask import AskClient, AskSpec
-from ha_ask.config import Config
+from ask import AskClient, AskSpec
+from ask.config import Config
 
 cfg = Config.from_env()
 client = AskClient(cfg)
@@ -160,7 +169,7 @@ from ha_ask.config import load_config
 cfg = load_config()  # deprecated compatibility API
 
 # After
-from ha_ask.config import Config
+from ask.config import Config
 
 cfg = Config(
     ha_api_url="https://home.example.com",
@@ -187,7 +196,7 @@ If you are using environment-backed config (`Config.from_env()`), set:
 ### Run this exact command
 
 ```bash
-python -m ha_ask.canonical_demo --output artifacts/demo_report.json
+python -m ask.canonical_demo --output artifacts/demo_report.json
 ```
 
 ### Success looks like
@@ -220,8 +229,8 @@ Open the JSON and verify key contract fields exist, for example:
 ## Preferred object API
 
 ```python
-from ha_ask import AskClient, AskSpec, Answer
-from ha_ask.config import Config
+from ask import AskClient, AskSpec, Answer
+from ask.config import Config
 
 cfg = Config(
     ha_api_url="https://home.example.com",
@@ -241,7 +250,7 @@ res = client.ask_question(
 ## Compatibility function API: `ask_question(...)`
 
 ```python
-from ha_ask import ask_question, AskSpec, Answer
+from ask import ask_question, AskSpec, Answer
 
 res = ask_question(
     channel="satellite",             # "terminal" | "satellite" | "mobile" | "discord"
@@ -326,7 +335,7 @@ elif is_cancelled(res):
 ```python
 from ha_ask import ask_question, AskSpec
 from ha_ask.errors import is_ok
-from ha_ask.config import Config
+from ask.config import Config
 
 cfg = Config.from_env().to_dict()  # or build Config(...) explicitly and call to_dict()
 
@@ -351,7 +360,7 @@ Mobile needs a terminal “Done” action, so set `expect_reply=True`.
 ```python
 from ha_ask import ask_question, AskSpec
 from ha_ask.errors import is_ok
-from ha_ask.config import Config
+from ask.config import Config
 
 cfg = Config.from_env().to_dict()  # or build Config(...) explicitly and call to_dict()
 
@@ -438,7 +447,7 @@ If interactive mode is unavailable, Ask falls back to typed matching with:
 * answer sentence aliases (`affirmative`, `negative`, ...)
 
 ```python
-from ha_ask import ask_question, AskSpec, Answer
+from ask import ask_question, AskSpec, Answer
 from ha_ask.errors import is_ok
 
 spec = AskSpec(
@@ -576,7 +585,7 @@ Other error strings are allowed and expected as you add channel-specific failure
 Stable public imports:
 
 ```python
-from ha_ask import ask_question, AskSpec, Answer
+from ask import ask_question, AskSpec, Answer
 from ha_ask.errors import (
     ERR_NO_MATCH, ERR_NO_RESPONSE, ERR_TIMEOUT,
     is_ok, is_match, is_no_match, is_no_response, is_timeout, is_other_error, error_kind,

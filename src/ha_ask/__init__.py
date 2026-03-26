@@ -1,3 +1,9 @@
+"""Compatibility package for Ask.
+
+Prefer importing from `ask` in new code.
+`ha_ask` remains supported as a migration shim.
+"""
+
 # ha_ask/__init__.py
 from .types import AskSpec, Answer, ChoiceSpec, FreeformSpec
 from .dispatch import (
