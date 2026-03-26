@@ -71,6 +71,9 @@ def _build_payload(
             {
                 "key": answer.id,
                 "label": answer.title or answer.id,
+                # Preserve Ask-side semantic matching phrases for Discord transport.
+                # slot_bindings remain mapped back in Ask after choice selection.
+                "aliases": list(answer.sentences),
             }
             for answer in spec.answers
         ]

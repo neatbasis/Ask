@@ -35,10 +35,11 @@ def test_discord_choice_maps_answer_slot_bindings_to_slots(monkeypatch):
         allow_replies=True,
     )
 
-    monkeypatch.setattr(
-        discord.request,
-        "urlopen",
-        lambda req, timeout: _DummyHTTPResponse(
+    captured_request_payload = {}
+
+    def _fake_urlopen(req, timeout):
+        captured_request_payload.update(json.loads(req.data.decode("utf-8")))
+        return _DummyHTTPResponse(
             {
                 "correlation_id": "c-1",
                 "status": "answered",
@@ -48,8 +49,9 @@ def test_discord_choice_maps_answer_slot_bindings_to_slots(monkeypatch):
                 "channel_id": 456,
                 "error": None,
             }
-        ),
-    )
+        )
+
+    monkeypatch.setattr(discord.request, "urlopen", _fake_urlopen)
 
     result = discord.ask_question(
         spec=spec,
@@ -60,6 +62,51 @@ def test_discord_choice_maps_answer_slot_bindings_to_slots(monkeypatch):
     assert result["id"] == "quiet"
     assert result["slots"] == {"mode": "quiet", "volume": 10}
     assert result["meta"]["slot_evidence"]["mode"]["source"] == "answer.slot_bindings"
+    assert captured_request_payload["choices"] == [
+        {
+            "key": "quiet",
+            "label": "Quiet",
+            "aliases": ["quiet"],
+        }
+    ]
+
+
+def test_discord_choice_payload_uses_title_for_label_and_sentences_for_aliases(monkeypatch):
+    spec = AskSpec(
+        question="Pick one",
+        answers=[Answer(id="mode_quiet", title="Quiet mode", sentences=["quiet", "silent"])],
+    )
+    captured_request_payload = {}
+
+    def _fake_urlopen(req, timeout):
+        captured_request_payload.update(json.loads(req.data.decode("utf-8")))
+        return _DummyHTTPResponse(
+            {
+                "correlation_id": "c-1",
+                "status": "answered",
+                "response_text": "quiet",
+                "selected_choice_key": "mode_quiet",
+                "user_id": 123,
+                "channel_id": None,
+                "error": None,
+            }
+        )
+
+    monkeypatch.setattr(discord.request, "urlopen", _fake_urlopen)
+
+    discord.ask_question(
+        spec=spec,
+        service_url="http://discord-turn.local",
+        recipient="123",
+    )
+
+    assert captured_request_payload["choices"] == [
+        {
+            "key": "mode_quiet",
+            "label": "Quiet mode",
+            "aliases": ["quiet", "silent"],
+        }
+    ]
 
 
 def test_discord_freeform_uses_response_text(monkeypatch):
