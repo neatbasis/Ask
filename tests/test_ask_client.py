@@ -8,8 +8,8 @@ from ha_ask.types import Answer, AskSpec
 
 def _config() -> Config:
     return Config(
-        api_url="https://home.example.com",
-        token="cfg-token",
+        ha_api_url="https://home.example.com",
+        ha_api_token="cfg-token",
         notify_action="notify.mobile_app_phone",
         satellite_entity_id="assist_satellite.kitchen",
         discord_turn_service_url="http://discord-turn.local",
@@ -148,3 +148,19 @@ def test_module_level_ask_question_compatibility_path_unchanged(monkeypatch):
     result = ask_question(channel="terminal", spec=AskSpec(question="Compat?"))
 
     assert result == expected
+
+
+def test_ask_client_legacy_config_construction_still_propagates(monkeypatch):
+    captured = {}
+
+    def _fake_dispatch(**kwargs):
+        captured.update(kwargs)
+        return {"id": None, "sentence": None, "slots": {}, "meta": {}, "error": None}
+
+    monkeypatch.setattr("ha_ask.dispatch.ask_question", _fake_dispatch)
+
+    legacy_cfg = Config(api_url="https://legacy.example.com", token="legacy-token")
+    AskClient(legacy_cfg).ask_question(channel="satellite", spec=AskSpec(question="Q"))
+
+    assert captured["api_url"] == "https://legacy.example.com/api/"
+    assert captured["token"] == "legacy-token"

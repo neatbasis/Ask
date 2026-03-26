@@ -77,8 +77,8 @@ class AskClient:
         return ask_question(
             channel=channel,
             spec=spec,
-            api_url=api_url if api_url is not None else self.config.api_url,
-            token=token if token is not None else self.config.token,
+            api_url=api_url if api_url is not None else self.config.ha_api_url,
+            token=token if token is not None else self.config.ha_api_token,
             notify_action=notify_action if notify_action is not None else self.config.notify_action,
             discord_action=discord_action,
             discord_turn_service_url=(
@@ -110,8 +110,8 @@ class AskClient:
         return await ask_question_async(
             channel=channel,
             spec=spec,
-            api_url=api_url if api_url is not None else self.config.api_url,
-            token=token if token is not None else self.config.token,
+            api_url=api_url if api_url is not None else self.config.ha_api_url,
+            token=token if token is not None else self.config.ha_api_token,
             notify_action=notify_action if notify_action is not None else self.config.notify_action,
             discord_action=discord_action,
             discord_turn_service_url=(
@@ -148,8 +148,8 @@ class AskClient:
             channel=channel,
             question=question,
             choices=choices,
-            api_url=api_url if api_url is not None else self.config.api_url,
-            token=token if token is not None else self.config.token,
+            api_url=api_url if api_url is not None else self.config.ha_api_url,
+            token=token if token is not None else self.config.ha_api_token,
             notify_action=notify_action if notify_action is not None else self.config.notify_action,
             discord_action=discord_action,
             discord_turn_service_url=(
@@ -189,8 +189,8 @@ class AskClient:
             channel=channel,
             question=question,
             choices=choices,
-            api_url=api_url if api_url is not None else self.config.api_url,
-            token=token if token is not None else self.config.token,
+            api_url=api_url if api_url is not None else self.config.ha_api_url,
+            token=token if token is not None else self.config.ha_api_token,
             notify_action=notify_action if notify_action is not None else self.config.notify_action,
             discord_action=discord_action,
             discord_turn_service_url=(
@@ -229,8 +229,8 @@ class AskClient:
         return ask_freeform(
             channel=channel,
             question=question,
-            api_url=api_url if api_url is not None else self.config.api_url,
-            token=token if token is not None else self.config.token,
+            api_url=api_url if api_url is not None else self.config.ha_api_url,
+            token=token if token is not None else self.config.ha_api_token,
             notify_action=notify_action if notify_action is not None else self.config.notify_action,
             discord_action=discord_action,
             discord_turn_service_url=(
@@ -270,8 +270,8 @@ class AskClient:
         return await ask_freeform_async(
             channel=channel,
             question=question,
-            api_url=api_url if api_url is not None else self.config.api_url,
-            token=token if token is not None else self.config.token,
+            api_url=api_url if api_url is not None else self.config.ha_api_url,
+            token=token if token is not None else self.config.ha_api_token,
             notify_action=notify_action if notify_action is not None else self.config.notify_action,
             discord_action=discord_action,
             discord_turn_service_url=(
