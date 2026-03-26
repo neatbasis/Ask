@@ -71,6 +71,14 @@ Run the canonical demo flow and generate the consolidated artifact:
 python -m ask.reporting > artifacts/demo_report.json
 ```
 
+### Terminal scenario demo
+
+From the repository root, run the terminal-first scenario menu demo:
+
+```bash
+PYTHONPATH=src python -m demo_terminal_scenarios
+```
+
 ### Validation contract
 
 See the canonical scenario definition in [`docs/demo_scenario.md`](docs/demo_scenario.md).
