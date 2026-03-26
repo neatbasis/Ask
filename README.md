@@ -10,7 +10,7 @@ The return value is **Assist-compatible**: `id`, `sentence`, and `slots` follow 
 
 `ask` is the preferred package name for new code. `ha_ask` remains supported as a compatibility import path during migration.
 
-Compatibility imports continue to work:
+Compatibility imports continue to work (use only when migrating existing code):
 
 ```python
 from ha_ask import AskClient, AskSpec, Answer
@@ -275,7 +275,7 @@ res = ask_question(
   * `"mobile"`: sends actionable notification and listens for response events
   * `"discord"`: sends prompt via Discord turn service
 * `spec` (`AskSpec`): question + answers + behavior flags
-* `api_url`, `token`: Home Assistant REST base URL and long-lived token (`api_url` is not the Discord turn service URL)
+* `api_url`, `token`: compatibility names for Home Assistant REST base URL and long-lived token (`api_url` is not the Discord turn service URL). Prefer configuring `ha_api_url` / `ha_api_token` on `Config` and using `AskClient`.
 * `satellite_entity_id`: required for satellite unless you set `HA_SATELLITE_ENTITY_ID` or rely on your library default
 * `notify_action`: Home Assistant action string used for mobile unless you set `HA_NOTIFY_ACTION`
 * `discord_action`: Discord recipient reference used only for `channel="discord"`; expected format:
@@ -315,14 +315,15 @@ res = ask_question(
 
 ## 1) Free-form question (no answers)
 
-### Terminal
+### Terminal (preferred import surface)
 
 ```python
-from ha_ask import ask_question, AskSpec
-from ha_ask.errors import is_ok, is_cancelled
+from ask import AskClient, AskSpec, is_ok, is_cancelled
+from ask.config import Config
 
+client = AskClient(Config.from_env())
 spec = AskSpec(question="What should we do next?")
-res = ask_question(channel="terminal", spec=spec)
+res = client.ask_question(channel="terminal", spec=spec)
 
 if is_ok(res):
     print("Typed text:", res["sentence"])
@@ -333,20 +334,16 @@ elif is_cancelled(res):
 ### Satellite
 
 ```python
-from ha_ask import ask_question, AskSpec
-from ha_ask.errors import is_ok
+from ask import AskClient, AskSpec, is_ok
 from ask.config import Config
 
-cfg = Config.from_env().to_dict()  # or build Config(...) explicitly and call to_dict()
+client = AskClient(Config.from_env())
 
 spec = AskSpec(question="What should we do next?", answers=None, timeout_s=30)
 
-res = ask_question(
+res = client.ask_question(
     channel="satellite",
     spec=spec,
-    api_url=cfg["ha_api_url"],
-    token=cfg["ha_api_token"],
-    satellite_entity_id=cfg["satellite_entity_id"],
 )
 
 if is_ok(res):
@@ -358,11 +355,10 @@ if is_ok(res):
 Mobile needs a terminal “Done” action, so set `expect_reply=True`.
 
 ```python
-from ha_ask import ask_question, AskSpec
-from ha_ask.errors import is_ok
+from ask import AskClient, AskSpec, is_ok
 from ask.config import Config
 
-cfg = Config.from_env().to_dict()  # or build Config(...) explicitly and call to_dict()
+client = AskClient(Config.from_env())
 
 spec = AskSpec(
     question="Tell me what you want next. Reply then press Done.",
@@ -373,12 +369,9 @@ spec = AskSpec(
     title="SemanticNG",
 )
 
-res = ask_question(
+res = client.ask_question(
     channel="mobile",
     spec=spec,
-    api_url=cfg["ha_api_url"],
-    token=cfg["ha_api_token"],
-    notify_action=cfg["notify_action"],
 )
 
 if is_ok(res):
@@ -401,7 +394,7 @@ This is the closest match to Assist Satellite’s native behavior.
 ### Defining answers
 
 ```python
-from ha_ask import Answer
+from ask import Answer
 
 answers = [
     Answer("yes", ["yes", "yeah", "yep", "sure", "of course"], title="Yes"),
@@ -412,13 +405,18 @@ answers = [
 ### Satellite (Assist-native)
 
 ```python
+from ask import AskClient, AskSpec
+from ask.config import Config
+
+client = AskClient(Config.from_env())
+
 spec = AskSpec(
     question="Proceed with the next step?",
     answers=answers,
     timeout_s=60,
 )
 
-res = ask_question(channel="satellite", spec=spec, api_url=..., token=..., satellite_entity_id=...)
+res = client.ask_question(channel="satellite", spec=spec)
 
 print(res["id"])       # "yes" or "no" or None (if no match)
 print(res["sentence"]) # recognized utterance
@@ -447,8 +445,11 @@ If interactive mode is unavailable, Ask falls back to typed matching with:
 * answer sentence aliases (`affirmative`, `negative`, ...)
 
 ```python
-from ask import ask_question, AskSpec, Answer
-from ha_ask.errors import is_ok
+from ask import AskClient, AskSpec, Answer
+from ask import is_ok
+from ask.config import Config
+
+client = AskClient(Config.from_env())
 
 spec = AskSpec(
     question="Proceed with the next step?",
@@ -458,7 +459,7 @@ spec = AskSpec(
     ],
 )
 
-res = ask_question(channel="terminal", spec=spec)
+res = client.ask_question(channel="terminal", spec=spec)
 
 if is_ok(res):
     print(res["id"])       # canonical answer id ("yes"/"no")
@@ -475,14 +476,17 @@ Artist: The Beatles
 ```
 
 ```python
-from ha_ask import ask_question, AskSpec
+from ask import AskClient, AskSpec
+from ask.config import Config
+
+client = AskClient(Config.from_env())
 
 spec = AskSpec(
     question="What should we play?",
     expected_slots=["album", "artist"],
 )
 
-res = ask_question(channel="terminal", spec=spec)
+res = client.ask_question(channel="terminal", spec=spec)
 
 print(res["id"])       # None (unless a choice step set it)
 print(res["sentence"]) # terminal text summary of collected values
@@ -499,6 +503,11 @@ rendering is not possible, terminal keeps deterministic fallback rendering.
 On mobile, the user can only pick from the buttons you provide, so you won’t get `no_match` there.
 
 ```python
+from ask import AskClient, AskSpec
+from ask.config import Config
+
+client = AskClient(Config.from_env())
+
 spec = AskSpec(
     question="Proceed with the next step?",
     answers=answers,
@@ -507,7 +516,7 @@ spec = AskSpec(
     title="SemanticNG",
 )
 
-res = ask_question(channel="mobile", spec=spec, api_url=..., token=..., notify_action=...)
+res = client.ask_question(channel="mobile", spec=spec)
 
 print(res["id"])            # "yes" or "no"
 print(res["meta"]["replies"])  # optional text replies
@@ -528,12 +537,17 @@ collection.
 Assist Satellite sentence templates can contain wildcards `{slots}`:
 
 ```python
+from ask import AskClient, AskSpec, Answer
+from ask.config import Config
+
+client = AskClient(Config.from_env())
+
 answers = [
     Answer("play_album", ["play {album} by {artist}"], title="Play album"),
 ]
 spec = AskSpec(question="What should I play?", answers=answers, timeout_s=60)
 
-res = ask_question(channel="satellite", spec=spec, api_url=..., token=..., satellite_entity_id=...)
+res = client.ask_question(channel="satellite", spec=spec)
 
 if res["id"] == "play_album":
     print("Album:", res["slots"].get("album"))
@@ -546,10 +560,10 @@ Mobile cannot do speech-template slot capture; it only provides replies/buttons.
 
 # Error handling (recommended)
 
-Use the helper predicates from `ha_ask.errors`:
+Use the helper predicates from `ask`:
 
 ```python
-from ha_ask.errors import (
+from ask import (
     is_ok, is_match, is_no_match, is_no_response, is_timeout, is_other_error
 )
 
@@ -582,10 +596,20 @@ Other error strings are allowed and expected as you add channel-specific failure
 
 # Public API surface (what end users should rely on)
 
-Stable public imports:
+Stable public imports (preferred):
 
 ```python
 from ask import ask_question, AskSpec, Answer
+from ask import (
+    ERR_NO_MATCH, ERR_NO_RESPONSE, ERR_TIMEOUT,
+    is_ok, is_match, is_no_match, is_no_response, is_timeout, is_other_error, error_kind,
+)
+```
+
+Compatibility imports remain available:
+
+```python
+from ha_ask import ask_question, AskSpec, Answer
 from ha_ask.errors import (
     ERR_NO_MATCH, ERR_NO_RESPONSE, ERR_TIMEOUT,
     is_ok, is_match, is_no_match, is_no_response, is_timeout, is_other_error, error_kind,
