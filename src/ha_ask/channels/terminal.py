@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 
 from ..errors import ERR_CANCELLED
-from ..interaction_types import InteractionMode, SlotSpec, ask_spec_to_interaction
+from ..interaction_types import AnswerTemplate, InteractionMode, SlotSpec, ask_spec_to_interaction
 from ..types import Answer, AskResult, AskSpec
 from .terminal_ui import TerminalUIUnavailable, select_answer_interactive
 
@@ -90,6 +90,59 @@ def _slot_prompt(slot: SlotSpec) -> str:
     return f"{slot_name}: "
 
 
+def _template_hint(template: AnswerTemplate | None) -> str | None:
+    if template is None or not template.sentences:
+        return None
+    sentence = template.sentences[0].strip()
+    if not sentence:
+        return None
+    return f"Template: {sentence}"
+
+
+def _pick_terminal_template(
+    templates: Sequence[AnswerTemplate],
+    slots: Sequence[SlotSpec],
+    *,
+    answer_id: str | None = None,
+    initial_slots: dict[str, object] | None = None,
+) -> AnswerTemplate | None:
+    if not templates:
+        return None
+
+    required_names = {slot.name for slot in _required_slots(slots)}
+    available_names = set(required_names)
+    if initial_slots:
+        available_names.update(initial_slots.keys())
+
+    for template in templates:
+        if answer_id and template.id != answer_id:
+            continue
+        if not template.sentences:
+            continue
+        bindings = set((template.slot_bindings or {}).keys())
+        if bindings and not bindings.issubset(available_names):
+            continue
+        return template
+
+    for template in templates:
+        if template.sentences:
+            return template
+    return None
+
+
+def _render_sentence_from_template(template: AnswerTemplate, slots: dict[str, object]) -> str | None:
+    if not template.sentences:
+        return None
+    pattern = template.sentences[0]
+    rendered = pattern
+    for slot_name, value in slots.items():
+        rendered = rendered.replace(f"{{{slot_name}}}", str(value))
+
+    if "{" in rendered or "}" in rendered:
+        return None
+    return rendered
+
+
 def _required_slots(slots: Sequence[SlotSpec]) -> list[SlotSpec]:
     return [slot for slot in slots if slot.required]
 
@@ -99,12 +152,19 @@ def _collect_slots(
     slots: Sequence[SlotSpec],
     *,
     initial_slots: dict[str, object] | None = None,
+    template: AnswerTemplate | None = None,
 ) -> tuple[dict[str, object], bool]:
     collected: dict[str, object] = dict(initial_slots or {})
+    template_hint = _template_hint(template)
+    showed_hint = False
     for slot in _required_slots(slots):
         if slot.name in collected:
             continue
-        raw = input_fn(_slot_prompt(slot))
+        prompt = _slot_prompt(slot)
+        if template_hint and not showed_hint:
+            prompt = f"{template_hint}\n{prompt}"
+            showed_hint = True
+        raw = input_fn(prompt)
         if _is_cancel_input(raw):
             return collected, False
         collected[slot.name] = raw
@@ -168,18 +228,21 @@ def _ask_slot_collection(
     answer_id: str | None = None,
     sentence: str | None = None,
     initial_slots: dict[str, object] | None = None,
+    template: AnswerTemplate | None = None,
 ) -> AskResult:
     collected_slots, completed = _collect_slots(
         input_fn,
         interaction_slots,
         initial_slots=initial_slots,
+        template=template,
     )
     if not completed:
         return _cancel_result(spec)
 
     result_sentence = sentence
     if result_sentence is None:
-        result_sentence = _sentence_from_slots(collected_slots)
+        rendered = _render_sentence_from_template(template, collected_slots) if template else None
+        result_sentence = rendered if rendered is not None else _sentence_from_slots(collected_slots)
 
     return _ok_result(
         spec,
@@ -211,19 +274,27 @@ def ask_question(
                 return choice_result
 
             if _required_slots(interaction.slots):
+                chosen_template = _pick_terminal_template(
+                    interaction.templates,
+                    interaction.slots,
+                    answer_id=choice_result["id"],
+                    initial_slots=choice_result["slots"],
+                )
                 return _ask_slot_collection(
                     spec,
                     interaction.slots,
                     input_fn,
                     answer_id=choice_result["id"],
-                    sentence=choice_result["sentence"],
+                    sentence=None,
                     initial_slots=choice_result["slots"],
+                    template=chosen_template,
                 )
 
             return choice_result
 
         if _required_slots(interaction.slots):
-            return _ask_slot_collection(spec, interaction.slots, input_fn)
+            chosen_template = _pick_terminal_template(interaction.templates, interaction.slots)
+            return _ask_slot_collection(spec, interaction.slots, input_fn, template=chosen_template)
 
         # Terminal starts with a small subset of the richer model.
         # Other modes can be added incrementally without changing AskResult.

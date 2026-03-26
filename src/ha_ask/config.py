@@ -41,6 +41,7 @@ class Config:
     token: str | None
     notify_action: str | None = None
     satellite_entity_id: str | None = None
+    discord_turn_service_url: str | None = None
 
     def __post_init__(self) -> None:
         if self.api_url:
@@ -54,6 +55,7 @@ class Config:
             token=env.get("HA_API_SECRET"),
             notify_action=env.get("HA_NOTIFY_ACTION"),
             satellite_entity_id=env.get("HA_SATELLITE_ENTITY_ID"),
+            discord_turn_service_url=env.get("DISCORD_TURN_SERVICE_URL"),
         )
 
     @classmethod
@@ -63,6 +65,7 @@ class Config:
             token=data.get("token"),
             notify_action=data.get("notify_action"),
             satellite_entity_id=data.get("satellite_entity_id"),
+            discord_turn_service_url=data.get("discord_turn_service_url"),
         )
 
     def to_dict(self) -> dict[str, str | None]:
@@ -71,6 +74,7 @@ class Config:
             "token": self.token,
             "notify_action": self.notify_action,
             "satellite_entity_id": self.satellite_entity_id,
+            "discord_turn_service_url": self.discord_turn_service_url,
         }
 
 

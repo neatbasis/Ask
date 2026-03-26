@@ -87,7 +87,7 @@ def test_discord_action_falls_back_to_notify_action(monkeypatch):
     result = ask_question(
         channel="discord",
         spec=_spec(),
-        api_url="http://discord-turn.local",
+        discord_turn_service_url="http://discord-turn.local",
         token="secret-token",
         notify_action="123456789",
     )
@@ -98,6 +98,19 @@ def test_discord_action_falls_back_to_notify_action(monkeypatch):
     assert called["bearer_token"] == "secret-token"
     assert len(persisted) == 1
     assert persisted[0]["result"] == expected
+
+
+def test_discord_requires_dedicated_turn_service_url(monkeypatch):
+    monkeypatch.setattr("ha_ask.dispatch.persist_ask_session", lambda **kwargs: "session-1")
+
+    result = ask_question(
+        channel="discord",
+        spec=_spec(),
+        api_url="http://ha.local",
+        discord_action="123",
+    )
+
+    assert result["error"] == "missing_discord_turn_url"
 
 
 def test_persist_called_once_for_unknown_channel(monkeypatch):
