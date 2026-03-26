@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterator
 
 from ha_ask.channels import terminal
+from ha_ask.channels.terminal_ui import TerminalUIUnavailable
 from ha_ask.errors import ERR_CANCELLED
 from ha_ask.types import Answer, AskSpec
 
@@ -135,3 +136,35 @@ def test_terminal_freeform_keyboard_interrupt_returns_cancelled() -> None:
     result = terminal.ask_question(spec, input_fn=raise_ctrl_c)
 
     assert result["error"] == ERR_CANCELLED
+
+
+def test_terminal_multichoice_interactive_selection_returns_selected_id_and_slots() -> None:
+    spec = _choice_spec()
+
+    def _select(_: str, answers: tuple[Answer, ...] | list[Answer]) -> Answer | None:
+        return answers[1]
+
+    result = terminal.ask_question(spec, interactive_selector=_select)
+
+    assert result["id"] == "no"
+    assert result["sentence"] == "No thanks"
+    assert result["slots"] == {"consent_to_contact": False}
+
+
+def test_terminal_multichoice_interactive_cancel_returns_cancelled() -> None:
+    result = terminal.ask_question(_choice_spec(), interactive_selector=lambda *_: None)
+
+    assert result["error"] == ERR_CANCELLED
+
+
+def test_terminal_multichoice_interactive_unavailable_falls_back_to_typed() -> None:
+    def _unavailable(*_: object) -> Answer | None:
+        raise TerminalUIUnavailable("no tty")
+
+    result = terminal.ask_question(
+        _choice_spec(),
+        input_fn=lambda _: "1",
+        interactive_selector=_unavailable,
+    )
+
+    assert result["id"] == "yes"
