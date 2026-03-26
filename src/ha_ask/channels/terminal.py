@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 
 from ..errors import ERR_CANCELLED
+from ..interaction_types import InteractionMode, ask_spec_to_interaction
 from ..types import Answer, AskResult, AskSpec
 from .terminal_ui import TerminalUIUnavailable, select_answer_interactive
 
@@ -135,14 +136,19 @@ def ask_question(
     prefer_interactive: bool = True,
 ) -> AskResult:
     try:
-        if spec.answers:
+        interaction = ask_spec_to_interaction(spec)
+
+        if interaction.mode == InteractionMode.CHOICE and interaction.choices:
             return _ask_multichoice(
                 spec,
                 input_fn,
-                spec.answers,
+                interaction.choices,
                 interactive_selector=interactive_selector,
                 prefer_interactive=prefer_interactive,
             )
+
+        # Terminal starts with a small subset of the richer model.
+        # Other modes can be added incrementally without changing AskResult.
         return _ask_freeform(spec, input_fn)
     except KeyboardInterrupt:
         return _cancel_result(spec)
