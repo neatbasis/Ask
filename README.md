@@ -109,22 +109,24 @@ from ask.config import Config
 cfg = Config.from_env()  # loads Home Assistant transport config
 ```
 
-## Preferred API: configured `AskClient`
+## Preferred quickstart: configured `AskClient`
 
-Use `Config` as your long-lived transport configuration and `AskClient` as your call surface:
+Use `Config` as your long-lived transport configuration and `AskClient` as your call surface.
 
 ```python
-from ask import AskClient, AskSpec
+from ask import AskClient, AskSpec, is_ok
 from ask.config import Config
 
-cfg = Config.from_env()
+cfg = Config.from_env()  # loads HA transport env vars (HA_API_URL / HA_API_TOKEN)
 client = AskClient(cfg)
 
 res = client.ask_question(
-    channel="discord",
-    spec=AskSpec(question="Deploy now?"),
-    discord_action="123456789012345678",  # Discord recipient reference
+    channel="terminal",
+    spec=AskSpec(question="What should we do next?"),
 )
+
+if is_ok(res):
+    print(res["sentence"])
 ```
 
 The client defaults come from `Config`:
@@ -251,20 +253,17 @@ res = client.ask_question(
 )
 ```
 
-## Transitional compatibility API: `ask_question(...)`
+## Transitional compatibility API (migration only): `ask_question(...)`
 
 ```python
-from ask import ask_question, AskSpec, Answer
+from ask import ask_question, AskSpec
 
+# Transitional helper-style call while migrating older code.
 res = ask_question(
-    channel="satellite",             # "terminal" | "satellite" | "mobile" | "discord"
-    spec=AskSpec(...),
-    api_url="https://home.example.com",                              # Home Assistant URL
+    channel="satellite",
+    spec=AskSpec(question="Proceed?"),
+    api_url="https://home.example.com",
     token="YOUR_LONG_LIVED_TOKEN",
-    satellite_entity_id="assist_satellite.my_satellite",   # satellite only
-    notify_action="notify.mobile_app_my_phone",                    # mobile only
-    discord_action="123456789012345678:234567890123456789",        # discord recipient ref
-    discord_turn_service_url="http://discord-turn.local",          # DiscordTurnService URL
 )
 ```
 
@@ -315,27 +314,11 @@ res = ask_question(
 
 ---
 
-# Asking styles by capability
+# Examples by capability (preferred API)
 
-## 1) Free-form question (no answers)
+Each example is intentionally short and teaches one primary behavior.
 
-### Terminal example
-
-```python
-from ask import AskClient, AskSpec, is_ok, is_cancelled
-from ask.config import Config
-
-client = AskClient(Config.from_env())
-spec = AskSpec(question="What should we do next?")
-res = client.ask_question(channel="terminal", spec=spec)
-
-if is_ok(res):
-    print("Typed text:", res["sentence"])
-elif is_cancelled(res):
-    print("User cancelled from terminal (Esc/esc/escape or Ctrl+C).")
-```
-
-### Satellite example
+## A) Free-form ask
 
 ```python
 from ask import AskClient, AskSpec, is_ok
@@ -343,20 +326,41 @@ from ask.config import Config
 
 client = AskClient(Config.from_env())
 
-spec = AskSpec(question="What should we do next?", answers=None, timeout_s=30)
+res = client.ask_question(
+    channel="terminal",
+    spec=AskSpec(question="Give me a one-line deployment status."),
+)
+
+if is_ok(res):
+    print("Status:", res["sentence"])
+```
+
+## B) Multiple-choice classification with stable IDs
+
+```python
+from ask import AskClient, AskSpec, Answer
+from ask.config import Config
+
+client = AskClient(Config.from_env())
 
 res = client.ask_question(
     channel="satellite",
-    spec=spec,
+    spec=AskSpec(
+        question="Proceed with production rollout?",
+        answers=[
+            Answer("approve", ["yes", "approve", "go ahead"], title="Approve"),
+            Answer("block", ["no", "block", "stop"], title="Block"),
+        ],
+    ),
 )
 
-if is_ok(res):
-    print("User said:", res["sentence"])   # id is typically None
+if res["id"] == "approve":
+    print("Continue pipeline")
 ```
 
-### Mobile example (reply-mode)
+Use `id` (not the rendered sentence) as your stable downstream decision key.
 
-Mobile needs a terminal “Done” action, so set `expect_reply=True`.
+## C) Required-slot collection (terminal deterministic flow)
 
 ```python
 from ask import AskClient, AskSpec, is_ok
@@ -364,201 +368,60 @@ from ask.config import Config
 
 client = AskClient(Config.from_env())
 
-spec = AskSpec(
-    question="Tell me what you want next. Reply then press Done.",
-    answers=None,
-    expect_reply=True,
-    allow_replies=True,
-    timeout_s=120,
-    title="SemanticNG",
+res = client.ask_question(
+    channel="terminal",
+    spec=AskSpec(
+        question="Collect release metadata",
+        expected_slots=["service", "version"],
+    ),
 )
+
+if is_ok(res):
+    print(res["slots"]["service"], res["slots"]["version"])
+```
+
+Terminal required-slot collection is deterministic: missing slots are prompted in order.
+
+## D) Satellite template slot capture
+
+```python
+from ask import AskClient, AskSpec, Answer
+from ask.config import Config
+
+client = AskClient(Config.from_env())
 
 res = client.ask_question(
-    channel="mobile",
-    spec=spec,
+    channel="satellite",
+    spec=AskSpec(
+        question="What should I play?",
+        answers=[Answer("play_album", ["play {album} by {artist}"])],
+    ),
 )
-
-if is_ok(res):
-    print("Last reply:", res["sentence"])
-    print("All replies:", res["meta"].get("replies", []))
-```
-
-Behavior:
-
-* user may send 0..N replies
-* “Done” ends the interaction
-* if no replies were sent, `sentence == ""` and `meta["replies"] == []`
-
----
-
-## 2) Multiple-choice classification (answers)
-
-This is the closest match to Assist Satellite’s native behavior.
-
-### Defining answers
-
-```python
-from ask import Answer
-
-answers = [
-    Answer("yes", ["yes", "yeah", "yep", "sure", "of course"], title="Yes"),
-    Answer("no",  ["no", "nope", "nah", "negative"],          title="No"),
-]
-```
-
-### Satellite example (Assist-native)
-
-```python
-from ask import AskClient, AskSpec
-from ask.config import Config
-
-client = AskClient(Config.from_env())
-
-spec = AskSpec(
-    question="Proceed with the next step?",
-    answers=answers,
-    timeout_s=60,
-)
-
-res = client.ask_question(channel="satellite", spec=spec)
-
-print(res["id"])       # "yes" or "no" or None (if no match)
-print(res["sentence"]) # recognized utterance
-print(res["slots"])    # wildcard slots (if templates used)
-```
-
-### Terminal example (interactive choice + typed fallback + stepwise slot collection)
-
-For multiple-choice questions, terminal now prefers an interactive picker in suitable TTYs:
-
-```text
-Your mission, should you accept it, is to...
-
-> Accept Mission
-  Decline Mission
-  Defer Mission
-
-↑/↓ move • Enter select • Esc cancel
-```
-
-If interactive mode is unavailable, Ask falls back to typed matching with:
-
-* option number (`1`, `2`, ...)
-* answer id/key (`yes`, `no`, ...)
-* answer label/title (`Yes`, `No thanks`, ...)
-* answer sentence aliases (`affirmative`, `negative`, ...)
-
-```python
-from ask import AskClient, AskSpec, Answer
-from ask import is_ok
-from ask.config import Config
-
-client = AskClient(Config.from_env())
-
-spec = AskSpec(
-    question="Proceed with the next step?",
-    answers=[
-        Answer("yes", ["yes", "affirmative"], title="Yes", slot_bindings={"proceed": True}),
-        Answer("no", ["no", "negative"], title="No", slot_bindings={"proceed": False}),
-    ],
-)
-
-res = client.ask_question(channel="terminal", spec=spec)
-
-if is_ok(res):
-    print(res["id"])       # canonical answer id ("yes"/"no")
-    print(res["sentence"]) # interactive label, or raw typed fallback input
-    print(res["slots"])    # copied from selected answer.slot_bindings
-```
-
-For slot-collection style asks (`expected_slots`), terminal now prompts each
-missing required slot in order:
-
-```text
-Album: The White Album
-Artist: The Beatles
-```
-
-```python
-from ask import AskClient, AskSpec
-from ask.config import Config
-
-client = AskClient(Config.from_env())
-
-spec = AskSpec(
-    question="What should we play?",
-    expected_slots=["album", "artist"],
-)
-
-res = client.ask_question(channel="terminal", spec=spec)
-
-print(res["id"])       # None (unless a choice step set it)
-print(res["sentence"]) # terminal text summary of collected values
-print(res["slots"])    # {"album": "...", "artist": "..."}
-```
-
-If template metadata is available in Ask internals, terminal can include a compact
-template hint and render `sentence` from the template (for example,
-`play {album} by {artist}` -> `play The White Album by The Beatles`). If template
-rendering is not possible, terminal keeps deterministic fallback rendering.
-
-### Mobile example (buttons)
-
-On mobile, the user can only pick from the buttons you provide, so you won’t get `no_match` there.
-
-```python
-from ask import AskClient, AskSpec
-from ask.config import Config
-
-client = AskClient(Config.from_env())
-
-spec = AskSpec(
-    question="Proceed with the next step?",
-    answers=answers,
-    allow_replies=True,   # allow textInput replies before choosing
-    timeout_s=300,
-    title="SemanticNG",
-)
-
-res = client.ask_question(channel="mobile", spec=spec)
-
-print(res["id"])            # "yes" or "no"
-print(res["meta"]["replies"])  # optional text replies
-```
-
----
-
-## Terminal-first delivery note
-
-This repository now includes terminal turn handling for freeform, choice
-(interactive + typed fallback), and deterministic stepwise required-slot
-collection.
-
----
-
-## 3) Slot capture (Satellite only)
-
-Assist Satellite sentence templates can contain wildcards `{slots}`:
-
-```python
-from ask import AskClient, AskSpec, Answer
-from ask.config import Config
-
-client = AskClient(Config.from_env())
-
-answers = [
-    Answer("play_album", ["play {album} by {artist}"], title="Play album"),
-]
-spec = AskSpec(question="What should I play?", answers=answers, timeout_s=60)
-
-res = client.ask_question(channel="satellite", spec=spec)
 
 if res["id"] == "play_album":
-    print("Album:", res["slots"].get("album"))
-    print("Artist:", res["slots"].get("artist"))
+    print("Album:", res["slots"]["album"])
+    print("Artist:", res["slots"]["artist"])
 ```
 
-Mobile cannot do speech-template slot capture; it only provides replies/buttons.
+Satellite provides the strongest template/slot capture semantics; mobile/terminal do not perform voice-template extraction.
+
+## E) Discord routing
+
+```python
+from ask import AskClient, AskSpec
+from ask.config import Config
+
+cfg = Config.from_env()  # includes discord_turn_service_url when set
+client = AskClient(cfg)
+
+res = client.ask_question(
+    channel="discord",
+    spec=AskSpec(question="Deploy now?"),
+    discord_action="123456789012345678",  # Discord recipient reference
+)
+```
+
+`discord_action` is a Discord recipient reference (user or user:channel), not a Home Assistant action string. Discord routing requires DiscordTurnService (`discord_turn_service_url`).
 
 ---
 
@@ -568,10 +431,13 @@ Use the helper predicates from `ask`:
 
 ```python
 from ask import (
-    is_ok, is_match, is_no_match, is_no_response, is_timeout, is_other_error
+    AskClient, AskSpec,
+    is_match, is_no_match, is_no_response, is_timeout, is_other_error,
 )
+from ask.config import Config
 
-res = ask_question(...)
+client = AskClient(Config.from_env())
+res = client.ask_question(channel="satellite", spec=AskSpec(question="Proceed?"))
 
 if is_match(res):
     ...
@@ -635,10 +501,12 @@ Consider everything else internal unless you explicitly document it.
 
 # Optional: convenience helper (recommended)
 
-A reusable yes/no helper (consistent across channels):
+A reusable yes/no helper that keeps `AskClient(Config)` as the calling surface:
 
 ```python
-def ask_yes_no(*, channel: str, question: str, **kwargs):
+from ask import AskClient, AskSpec, Answer
+
+def ask_yes_no(client: AskClient, *, channel: str, question: str, **kwargs):
     spec = AskSpec(
         question=question,
         answers=[
@@ -647,7 +515,7 @@ def ask_yes_no(*, channel: str, question: str, **kwargs):
         ],
         allow_replies=True,
     )
-    return ask_question(channel=channel, spec=spec, **kwargs)
+    return client.ask_question(channel=channel, spec=spec, **kwargs)
 ```
 
 ---
