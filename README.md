@@ -431,10 +431,13 @@ Use the helper predicates from `ask`:
 
 ```python
 from ask import (
-    is_ok, is_match, is_no_match, is_no_response, is_timeout, is_other_error
+    AskClient, AskSpec,
+    is_match, is_no_match, is_no_response, is_timeout, is_other_error,
 )
+from ask.config import Config
 
-res = ask_question(...)
+client = AskClient(Config.from_env())
+res = client.ask_question(channel="satellite", spec=AskSpec(question="Proceed?"))
 
 if is_match(res):
     ...
@@ -498,10 +501,12 @@ Consider everything else internal unless you explicitly document it.
 
 # Optional: convenience helper (recommended)
 
-A reusable yes/no helper (consistent across channels):
+A reusable yes/no helper that keeps `AskClient(Config)` as the calling surface:
 
 ```python
-def ask_yes_no(*, channel: str, question: str, **kwargs):
+from ask import AskClient, AskSpec, Answer
+
+def ask_yes_no(client: AskClient, *, channel: str, question: str, **kwargs):
     spec = AskSpec(
         question=question,
         answers=[
@@ -510,7 +515,7 @@ def ask_yes_no(*, channel: str, question: str, **kwargs):
         ],
         allow_replies=True,
     )
-    return ask_question(channel=channel, spec=spec, **kwargs)
+    return client.ask_question(channel=channel, spec=spec, **kwargs)
 ```
 
 ---
