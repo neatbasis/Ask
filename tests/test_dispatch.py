@@ -113,6 +113,56 @@ def test_discord_requires_dedicated_turn_service_url(monkeypatch):
     assert result["error"] == "missing_discord_turn_url"
 
 
+def test_helper_preferred_ha_api_params_are_accepted(monkeypatch):
+    expected = {"id": "ok", "sentence": "ok", "slots": {}, "meta": {}, "error": None}
+    called: dict = {}
+
+    def _fake_discord(*, spec, service_url, recipient, bearer_token):
+        called["service_url"] = service_url
+        called["recipient"] = recipient
+        called["bearer_token"] = bearer_token
+        return expected
+
+    monkeypatch.setattr("ha_ask.dispatch.discord_chan.ask_question", _fake_discord)
+    monkeypatch.setattr("ha_ask.dispatch.persist_ask_session", lambda **kwargs: "session-1")
+
+    result = ask_question(
+        channel="discord",
+        spec=_spec(),
+        discord_action="123456789",
+        discord_turn_service_url="http://discord-turn.local",
+        ha_api_url="http://ha.local",
+        ha_api_token="ha-token",
+    )
+
+    assert result == expected
+    assert called["bearer_token"] == "ha-token"
+
+
+def test_helper_preferred_ha_api_params_take_precedence(monkeypatch):
+    expected = {"id": "ok", "sentence": "ok", "slots": {}, "meta": {}, "error": None}
+    called: dict = {}
+
+    def _fake_discord(*, spec, service_url, recipient, bearer_token):
+        called["bearer_token"] = bearer_token
+        return expected
+
+    monkeypatch.setattr("ha_ask.dispatch.discord_chan.ask_question", _fake_discord)
+    monkeypatch.setattr("ha_ask.dispatch.persist_ask_session", lambda **kwargs: "session-1")
+
+    result = ask_question(
+        channel="discord",
+        spec=_spec(),
+        discord_action="123456789",
+        discord_turn_service_url="http://discord-turn.local",
+        ha_api_token="preferred-token",
+        token="legacy-token",
+    )
+
+    assert result == expected
+    assert called["bearer_token"] == "preferred-token"
+
+
 def test_persist_called_once_for_unknown_channel(monkeypatch):
     persisted: list[dict] = []
     monkeypatch.setattr(

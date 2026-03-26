@@ -65,6 +65,29 @@ def test_ask_client_ask_question_per_call_overrides(monkeypatch):
     assert captured["discord_turn_service_url"] == "http://discord-override.local"
 
 
+def test_ask_client_ask_question_prefers_ha_aliases_over_legacy(monkeypatch):
+    captured = {}
+
+    def _fake_dispatch(**kwargs):
+        captured.update(kwargs)
+        return {"id": None, "sentence": None, "slots": {}, "meta": {}, "error": None}
+
+    monkeypatch.setattr("ha_ask.dispatch.ask_question", _fake_dispatch)
+
+    client = AskClient(_config())
+    client.ask_question(
+        channel="satellite",
+        spec=AskSpec(question="Q"),
+        ha_api_url="http://preferred.local",
+        ha_api_token="preferred-token",
+        api_url="http://legacy.local",
+        token="legacy-token",
+    )
+
+    assert captured["api_url"] == "http://preferred.local"
+    assert captured["token"] == "preferred-token"
+
+
 def test_ask_client_methods_route_channel_arguments(monkeypatch):
     calls = []
 
@@ -164,3 +187,31 @@ def test_ask_client_legacy_config_construction_still_propagates(monkeypatch):
 
     assert captured["api_url"] == "https://legacy.example.com/api/"
     assert captured["token"] == "legacy-token"
+
+
+def test_ask_client_ask_choice_async_prefers_ha_aliases_over_legacy(monkeypatch):
+    captured = {}
+
+    async def _fake_choice_async(**kwargs):
+        captured.update(kwargs)
+        return {"id": "ok", "sentence": "ok", "slots": {}, "meta": {}, "error": None}
+
+    monkeypatch.setattr("ha_ask.dispatch.ask_choice_async", _fake_choice_async)
+
+    client = AskClient(_config())
+
+    async def _run() -> None:
+        await client.ask_choice_async(
+            channel="mobile",
+            question="Pick?",
+            choices=[Answer(id="yes", sentences=["yes"], title="Yes")],
+            ha_api_url="http://preferred.local",
+            ha_api_token="preferred-token",
+            api_url="http://legacy.local",
+            token="legacy-token",
+        )
+
+    asyncio.run(_run())
+
+    assert captured["api_url"] == "http://preferred.local"
+    assert captured["token"] == "preferred-token"
