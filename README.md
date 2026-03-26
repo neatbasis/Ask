@@ -63,13 +63,15 @@ Run lint checks (optional):
 ruff check src tests
 ```
 
-## Demo command
+## Canonical demo command
 
 Run the canonical demo flow and generate the consolidated artifact:
 
 ```bash
-python -m ask.reporting > artifacts/demo_report.json
+python -m ask.canonical_demo --output artifacts/demo_report.json
 ```
+
+`ask.reporting` is a reporting helper module (`build_draft_report`) and is not the canonical runnable demo CLI.
 
 ### Terminal scenario demo
 
@@ -231,12 +233,16 @@ python -m ask.canonical_demo --output artifacts/demo_report.json
 You should see a confirmation line such as:
 
 ```text
-Wrote canonical demo artifact to artifacts/demo_report.json
+Wrote demo report to artifacts/demo_report.json
 ```
 
 The artifact file is written to:
 
 - `artifacts/demo_report.json`
+
+### Other demo scripts in `src/`
+
+`src/demo.py` and `src/demo-satellite-choice.py` are local example scripts for manual Home Assistant testing. They are not the canonical repository demo flow and require environment-based configuration (`Config.from_env()`).
 
 Open the JSON and verify key contract fields exist, for example:
 
