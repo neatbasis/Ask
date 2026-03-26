@@ -43,12 +43,6 @@ python -m pip install --upgrade pip
 python -m pip install -e ".[test,bdd]"
 ```
 
-If you also want the BDD / Gherkin tooling used by the `features/` step definitions:
-
-```bash
-python -m pip install -e ".[test,bdd]"
-```
-
 ## Running tests
 
 Run the pytest suite:
@@ -142,6 +136,16 @@ The client defaults come from `Config`:
 * `discord_turn_service_url`
 
 You can still override any of those per call when needed.
+
+## Capability map and caveats
+
+| Capability | Recommended path | Notes / caveats |
+| --- | --- | --- |
+| Free-form text prompt | `AskClient(Config).ask_question(..., channel="terminal" \| "satellite" \| "mobile")` | Mobile free-form requires `expect_reply=True` to expose a terminal **Done** action. |
+| Multiple-choice classification | `AskClient(Config).ask_question(..., answers=[...])` | Satellite can return `no_match`; mobile button flows cannot (user can only choose provided options). |
+| Slot capture from sentence templates | `channel="satellite"` with templates like `play {album} by {artist}` | Slot extraction is Assist-template behavior; mobile/terminal do not perform voice-template slot extraction. |
+| Discord turn routing | `AskClient(Config).ask_question(channel="discord", discord_action=...)` | Requires `discord_turn_service_url` and a Discord recipient reference. |
+| Legacy function-style calls | `ask_question(...)` and helper wrappers | Supported as a **transitional compatibility** surface while migrating to `AskClient(Config)`. |
 
 ### Environment variable reference (single source of truth)
 
@@ -247,7 +251,7 @@ res = client.ask_question(
 )
 ```
 
-## Compatibility function API: `ask_question(...)`
+## Transitional compatibility API: `ask_question(...)`
 
 ```python
 from ask import ask_question, AskSpec, Answer
@@ -264,7 +268,7 @@ res = ask_question(
 )
 ```
 
-`ask_question(...)` and related module-level helpers (`ask_choice`, `ask_freeform`, async variants) remain available for compatibility. The preferred API for new code is `AskClient(config)` + method calls.
+`ask_question(...)` and related module-level helpers (`ask_choice`, `ask_freeform`, async variants) remain available as a **migration bridge**. For new code, prefer `AskClient(Config)` + method calls.
 
 ### Parameters
 
@@ -311,11 +315,11 @@ res = ask_question(
 
 ---
 
-# Asking styles
+# Asking styles by capability
 
 ## 1) Free-form question (no answers)
 
-### Terminal (preferred import surface)
+### Terminal example
 
 ```python
 from ask import AskClient, AskSpec, is_ok, is_cancelled
@@ -331,7 +335,7 @@ elif is_cancelled(res):
     print("User cancelled from terminal (Esc/esc/escape or Ctrl+C).")
 ```
 
-### Satellite
+### Satellite example
 
 ```python
 from ask import AskClient, AskSpec, is_ok
@@ -350,7 +354,7 @@ if is_ok(res):
     print("User said:", res["sentence"])   # id is typically None
 ```
 
-### Mobile (reply-mode)
+### Mobile example (reply-mode)
 
 Mobile needs a terminal “Done” action, so set `expect_reply=True`.
 
@@ -402,7 +406,7 @@ answers = [
 ]
 ```
 
-### Satellite (Assist-native)
+### Satellite example (Assist-native)
 
 ```python
 from ask import AskClient, AskSpec
@@ -423,7 +427,7 @@ print(res["sentence"]) # recognized utterance
 print(res["slots"])    # wildcard slots (if templates used)
 ```
 
-### Terminal (freeform + choice + stepwise slot collection)
+### Terminal example (interactive choice + typed fallback + stepwise slot collection)
 
 For multiple-choice questions, terminal now prefers an interactive picker in suitable TTYs:
 
@@ -498,7 +502,7 @@ template hint and render `sentence` from the template (for example,
 `play {album} by {artist}` -> `play The White Album by The Beatles`). If template
 rendering is not possible, terminal keeps deterministic fallback rendering.
 
-### Mobile (buttons)
+### Mobile example (buttons)
 
 On mobile, the user can only pick from the buttons you provide, so you won’t get `no_match` there.
 
