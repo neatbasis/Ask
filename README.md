@@ -94,6 +94,7 @@ cfg = Config(
     token="YOUR_LONG_LIVED_TOKEN",
     notify_action="notify.mobile_app_sebastian_mobile",  # optional
     satellite_entity_id="assist_satellite.kitchen",  # optional
+    discord_turn_service_url="http://discord-turn.local",  # optional, discord channel
 )
 ```
 
@@ -116,6 +117,7 @@ Optional:
 
 * `HA_NOTIFY_ACTION` – full Home Assistant action string (e.g. `notify.mobile_app_sebastian_mobile`)
 * `HA_SATELLITE_ENTITY_ID` – default satellite entity id
+* `DISCORD_TURN_SERVICE_URL` – base URL for Discord turn service (discord channel)
 
 ### Migration note
 
@@ -198,6 +200,7 @@ res = ask_question(
     token="YOUR_LONG_LIVED_TOKEN",
     satellite_entity_id="assist_satellite.my_satellite",   # satellite only
     notify_action="notify.mobile_app_my_phone",                  # mobile only
+    discord_turn_service_url="http://discord-turn.local",        # discord only (preferred)
 )
 ```
 
@@ -213,6 +216,7 @@ res = ask_question(
 * `api_url`, `token`: Home Assistant REST base URL and long-lived token
 * `satellite_entity_id`: required for satellite unless you set `HA_SATELLITE_ENTITY_ID` or rely on your library default
 * `notify_action`: required for mobile unless you set `HA_NOTIFY_ACTION`
+* `discord_turn_service_url`: Discord Turn Service URL for `channel="discord"` (required for discord routing)
 
 ### Returns: `AskResult`
 
@@ -415,6 +419,11 @@ print(res["id"])       # None (unless a choice step set it)
 print(res["sentence"]) # terminal text summary of collected values
 print(res["slots"])    # {"album": "...", "artist": "..."}
 ```
+
+If template metadata is available in Ask internals, terminal can include a compact
+template hint and render `sentence` from the template (for example,
+`play {album} by {artist}` -> `play The White Album by The Beatles`). If template
+rendering is not possible, terminal keeps deterministic fallback rendering.
 
 ### Mobile (buttons)
 

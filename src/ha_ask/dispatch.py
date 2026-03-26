@@ -30,6 +30,7 @@ def ask_question(
     token: Optional[str] = None,
     notify_action: Optional[str] = None,
     discord_action: Optional[str] = None,
+    discord_turn_service_url: Optional[str] = None,
     satellite_entity_id: Optional[str] = None,
 ) -> AskResult:
     result: AskResult
@@ -57,12 +58,12 @@ def ask_question(
         recipient = discord_action or notify_action
         if not recipient:
             result = {"id": None, "sentence": None, "slots": {}, "meta": {}, "error": "missing_discord_action"}
-        elif not api_url:
+        elif not discord_turn_service_url:
             result = {"id": None, "sentence": None, "slots": {}, "meta": {}, "error": "missing_discord_turn_url"}
         else:
             result = discord_chan.ask_question(
                 spec=spec,
-                service_url=api_url,
+                service_url=discord_turn_service_url,
                 recipient=recipient,
                 bearer_token=token,
             )
@@ -81,6 +82,7 @@ async def ask_question_async(
     token: Optional[str] = None,
     notify_action: Optional[str] = None,
     discord_action: Optional[str] = None,
+    discord_turn_service_url: Optional[str] = None,
     satellite_entity_id: Optional[str] = None,
 ) -> AskResult:
     return await asyncio.to_thread(
@@ -91,6 +93,7 @@ async def ask_question_async(
         token=token,
         notify_action=notify_action,
         discord_action=discord_action,
+        discord_turn_service_url=discord_turn_service_url,
         satellite_entity_id=satellite_entity_id,
     )
 
@@ -104,6 +107,7 @@ def ask_choice(
     token: Optional[str] = None,
     notify_action: Optional[str] = None,
     discord_action: Optional[str] = None,
+    discord_turn_service_url: Optional[str] = None,
     satellite_entity_id: Optional[str] = None,
     allow_replies: bool = False,
     timeout_s: float = 180.0,
@@ -123,6 +127,7 @@ def ask_choice(
         token=token,
         notify_action=notify_action,
         discord_action=discord_action,
+        discord_turn_service_url=discord_turn_service_url,
         satellite_entity_id=satellite_entity_id,
     )
 
@@ -136,6 +141,7 @@ async def ask_choice_async(
     token: Optional[str] = None,
     notify_action: Optional[str] = None,
     discord_action: Optional[str] = None,
+    discord_turn_service_url: Optional[str] = None,
     satellite_entity_id: Optional[str] = None,
     allow_replies: bool = False,
     timeout_s: float = 180.0,
@@ -150,6 +156,7 @@ async def ask_choice_async(
         token=token,
         notify_action=notify_action,
         discord_action=discord_action,
+        discord_turn_service_url=discord_turn_service_url,
         satellite_entity_id=satellite_entity_id,
         allow_replies=allow_replies,
         timeout_s=timeout_s,
@@ -165,6 +172,7 @@ def ask_freeform(
     token: Optional[str] = None,
     notify_action: Optional[str] = None,
     discord_action: Optional[str] = None,
+    discord_turn_service_url: Optional[str] = None,
     satellite_entity_id: Optional[str] = None,
     expected_slots: Optional[Sequence[str]] = None,
     slot_schema: Optional[dict] = None,
@@ -187,6 +195,7 @@ def ask_freeform(
         token=token,
         notify_action=notify_action,
         discord_action=discord_action,
+        discord_turn_service_url=discord_turn_service_url,
         satellite_entity_id=satellite_entity_id,
     )
 
@@ -199,6 +208,7 @@ async def ask_freeform_async(
     token: Optional[str] = None,
     notify_action: Optional[str] = None,
     discord_action: Optional[str] = None,
+    discord_turn_service_url: Optional[str] = None,
     satellite_entity_id: Optional[str] = None,
     expected_slots: Optional[Sequence[str]] = None,
     slot_schema: Optional[dict] = None,
@@ -213,6 +223,7 @@ async def ask_freeform_async(
         token=token,
         notify_action=notify_action,
         discord_action=discord_action,
+        discord_turn_service_url=discord_turn_service_url,
         satellite_entity_id=satellite_entity_id,
         expected_slots=expected_slots,
         slot_schema=slot_schema,

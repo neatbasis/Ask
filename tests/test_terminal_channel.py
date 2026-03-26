@@ -5,6 +5,7 @@ from collections.abc import Iterator
 from ha_ask.channels import terminal
 from ha_ask.channels.terminal_ui import TerminalUIUnavailable
 from ha_ask.errors import ERR_CANCELLED
+from ha_ask.interaction_types import AnswerTemplate, InteractionMode, InteractionSpec, SlotSpec
 from ha_ask.types import Answer, AskSpec
 
 
@@ -239,6 +240,85 @@ def test_terminal_choice_then_collects_remaining_required_slots() -> None:
     )
 
     assert result["id"] == "white_album"
-    assert result["sentence"] == "1"
+    assert result["sentence"] == "album=The White Album, artist=The Beatles"
     assert result["slots"] == {"album": "The White Album", "artist": "The Beatles"}
     assert prompts[1] == "Artist: "
+
+
+def test_terminal_slot_collection_shows_template_hint_and_renders_sentence(monkeypatch) -> None:
+    spec = AskSpec(question="Tell me what to play", expected_slots=["album", "artist"])
+    prompts: list[str] = []
+
+    def _input(prompt: str) -> str:
+        prompts.append(prompt)
+        return ["The White Album", "The Beatles"][len(prompts) - 1]
+
+    interaction = InteractionSpec(
+        id="template-fill",
+        prompt=spec.question,
+        mode=InteractionMode.TEMPLATE_FILL,
+        slots=(SlotSpec(name="album"), SlotSpec(name="artist")),
+        templates=(AnswerTemplate(id="play_album", sentences=("play {album} by {artist}",)),),
+    )
+    monkeypatch.setattr(terminal, "ask_spec_to_interaction", lambda _: interaction)
+
+    result = terminal.ask_question(spec, input_fn=_input)
+
+    assert prompts[0] == "Template: play {album} by {artist}\nAlbum: "
+    assert prompts[1] == "Artist: "
+    assert result["sentence"] == "play The White Album by The Beatles"
+
+
+def test_terminal_slot_collection_template_with_missing_slots_uses_fallback_sentence(monkeypatch) -> None:
+    spec = AskSpec(question="Tell me what to play", expected_slots=["album", "artist"])
+
+    interaction = InteractionSpec(
+        id="template-fill",
+        prompt=spec.question,
+        mode=InteractionMode.TEMPLATE_FILL,
+        slots=(SlotSpec(name="album"), SlotSpec(name="artist")),
+        templates=(AnswerTemplate(id="play_album", sentences=("play {album} by {genre}",)),),
+    )
+    monkeypatch.setattr(terminal, "ask_spec_to_interaction", lambda _: interaction)
+
+    result = terminal.ask_question(
+        spec,
+        input_fn=_iter_input(["The White Album", "The Beatles"]),
+    )
+
+    assert result["sentence"] == "album=The White Album, artist=The Beatles"
+
+
+def test_terminal_choice_then_slot_collection_renders_sentence_from_template(monkeypatch) -> None:
+    spec = AskSpec(
+        question="What should we play?",
+        answers=[
+            Answer(
+                id="white_album",
+                title="The White Album",
+                sentences=["white album"],
+                slot_bindings={"album": "The White Album"},
+            )
+        ],
+        expected_slots=["album", "artist"],
+    )
+
+    interaction = InteractionSpec(
+        id="ask.choice",
+        prompt=spec.question,
+        mode=InteractionMode.CHOICE,
+        choices=tuple(spec.answers or ()),
+        slots=(SlotSpec(name="album"), SlotSpec(name="artist")),
+        templates=(AnswerTemplate(id="white_album", sentences=("play {album} by {artist}",)),),
+    )
+    monkeypatch.setattr(terminal, "ask_spec_to_interaction", lambda _: interaction)
+
+    result = terminal.ask_question(
+        spec,
+        input_fn=_iter_input(["1", "The Beatles"]),
+        prefer_interactive=False,
+    )
+
+    assert result["id"] == "white_album"
+    assert result["slots"] == {"album": "The White Album", "artist": "The Beatles"}
+    assert result["sentence"] == "play The White Album by The Beatles"

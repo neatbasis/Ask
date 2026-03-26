@@ -14,6 +14,7 @@ def test_config_from_env_uses_mapping():
         "HA_API_SECRET": "secret",
         "HA_NOTIFY_ACTION": "notify.mobile_app_phone",
         "HA_SATELLITE_ENTITY_ID": "assist_satellite.kitchen",
+        "DISCORD_TURN_SERVICE_URL": "http://discord-turn.local",
     }
 
     cfg = Config.from_env(env)
@@ -22,6 +23,7 @@ def test_config_from_env_uses_mapping():
     assert cfg.token == "secret"
     assert cfg.notify_action == "notify.mobile_app_phone"
     assert cfg.satellite_entity_id == "assist_satellite.kitchen"
+    assert cfg.discord_turn_service_url == "http://discord-turn.local"
 
 
 def test_config_optional_fields_default_to_none():
@@ -29,6 +31,20 @@ def test_config_optional_fields_default_to_none():
 
     assert cfg.notify_action is None
     assert cfg.satellite_entity_id is None
+    assert cfg.discord_turn_service_url is None
+
+
+def test_config_mapping_and_to_dict_include_discord_turn_service_url():
+    cfg = Config.from_mapping(
+        {
+            "api_url": "http://ha.local",
+            "token": "secret",
+            "discord_turn_service_url": "http://discord-turn.local",
+        }
+    )
+
+    assert cfg.discord_turn_service_url == "http://discord-turn.local"
+    assert cfg.to_dict()["discord_turn_service_url"] == "http://discord-turn.local"
 
 
 def test_url_helpers_normalize_and_derive_ws():
