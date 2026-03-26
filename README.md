@@ -101,7 +101,7 @@ cfg = Config(
 )
 ```
 
-For environment-backed deployments, use `Config.from_env()`:
+For environment-backed deployments (CI, containers, local shells), `Config.from_env()` is a convenience for building the same `Config` object from environment variables:
 
 ```python
 from ask.config import Config
@@ -111,13 +111,19 @@ cfg = Config.from_env()  # loads Home Assistant transport config
 
 ## Preferred quickstart: configured `AskClient`
 
-Use `Config` as your long-lived transport configuration and `AskClient` as your call surface.
+Use explicit `Config(...)` as your long-lived transport configuration and `AskClient` as your call surface. This is the clearest conceptual model for what is configured.
 
 ```python
 from ask import AskClient, AskSpec, is_ok
 from ask.config import Config
 
-cfg = Config.from_env()  # loads HA transport env vars (HA_API_URL / HA_API_TOKEN)
+cfg = Config(
+    ha_api_url="https://home.example.com",
+    ha_api_token="YOUR_LONG_LIVED_TOKEN",
+    notify_action="notify.mobile_app_my_phone",  # optional
+    satellite_entity_id="assist_satellite.kitchen",  # optional
+    discord_turn_service_url="http://discord-turn.local",  # optional
+)
 client = AskClient(cfg)
 
 res = client.ask_question(
@@ -127,6 +133,13 @@ res = client.ask_question(
 
 if is_ok(res):
     print(res["sentence"])
+```
+
+For environment-backed deployments, you can swap in:
+
+```python
+cfg = Config.from_env()
+client = AskClient(cfg)
 ```
 
 The client defaults come from `Config`:
@@ -324,7 +337,11 @@ Each example is intentionally short and teaches one primary behavior.
 from ask import AskClient, AskSpec, is_ok
 from ask.config import Config
 
-client = AskClient(Config.from_env())
+cfg = Config(
+    ha_api_url="https://home.example.com",
+    ha_api_token="YOUR_LONG_LIVED_TOKEN",
+)
+client = AskClient(cfg)
 
 res = client.ask_question(
     channel="terminal",
@@ -341,7 +358,12 @@ if is_ok(res):
 from ask import AskClient, AskSpec, Answer
 from ask.config import Config
 
-client = AskClient(Config.from_env())
+cfg = Config(
+    ha_api_url="https://home.example.com",
+    ha_api_token="YOUR_LONG_LIVED_TOKEN",
+    satellite_entity_id="assist_satellite.kitchen",
+)
+client = AskClient(cfg)
 
 res = client.ask_question(
     channel="satellite",
@@ -366,7 +388,11 @@ Use `id` (not the rendered sentence) as your stable downstream decision key.
 from ask import AskClient, AskSpec, is_ok
 from ask.config import Config
 
-client = AskClient(Config.from_env())
+cfg = Config(
+    ha_api_url="https://home.example.com",
+    ha_api_token="YOUR_LONG_LIVED_TOKEN",
+)
+client = AskClient(cfg)
 
 res = client.ask_question(
     channel="terminal",
@@ -388,7 +414,12 @@ Terminal required-slot collection is deterministic: missing slots are prompted i
 from ask import AskClient, AskSpec, Answer
 from ask.config import Config
 
-client = AskClient(Config.from_env())
+cfg = Config(
+    ha_api_url="https://home.example.com",
+    ha_api_token="YOUR_LONG_LIVED_TOKEN",
+    satellite_entity_id="assist_satellite.kitchen",
+)
+client = AskClient(cfg)
 
 res = client.ask_question(
     channel="satellite",
@@ -411,7 +442,11 @@ Satellite provides the strongest template/slot capture semantics; mobile/termina
 from ask import AskClient, AskSpec
 from ask.config import Config
 
-cfg = Config.from_env()  # includes discord_turn_service_url when set
+cfg = Config(
+    ha_api_url="https://home.example.com",
+    ha_api_token="YOUR_LONG_LIVED_TOKEN",
+    discord_turn_service_url="http://discord-turn.local",
+)
 client = AskClient(cfg)
 
 res = client.ask_question(
@@ -436,7 +471,12 @@ from ask import (
 )
 from ask.config import Config
 
-client = AskClient(Config.from_env())
+cfg = Config(
+    ha_api_url="https://home.example.com",
+    ha_api_token="YOUR_LONG_LIVED_TOKEN",
+    satellite_entity_id="assist_satellite.kitchen",
+)
+client = AskClient(cfg)
 res = client.ask_question(channel="satellite", spec=AskSpec(question="Proceed?"))
 
 if is_match(res):
