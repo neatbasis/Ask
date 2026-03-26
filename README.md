@@ -239,6 +239,21 @@ res = ask_question(
 
 ## 1) Free-form question (no answers)
 
+### Terminal
+
+```python
+from ha_ask import ask_question, AskSpec
+from ha_ask.errors import is_ok, is_cancelled
+
+spec = AskSpec(question="What should we do next?")
+res = ask_question(channel="terminal", spec=spec)
+
+if is_ok(res):
+    print("Typed text:", res["sentence"])
+elif is_cancelled(res):
+    print("User cancelled from terminal (Esc/esc/escape or Ctrl+C).")
+```
+
 ### Satellite
 
 ```python
@@ -334,6 +349,39 @@ print(res["sentence"]) # recognized utterance
 print(res["slots"])    # wildcard slots (if templates used)
 ```
 
+### Terminal (typed selection)
+
+Terminal now supports typed multiple-choice turns as a first-class ask path.
+When `answers` are supplied, Ask renders options and retries until the input resolves
+to a valid choice or cancellation.
+
+Supported typed selection forms:
+
+* option number (`1`, `2`, ...)
+* answer id/key (`yes`, `no`, ...)
+* answer label/title (`Yes`, `No thanks`, ...)
+* answer sentence aliases (`affirmative`, `negative`, ...)
+
+```python
+from ha_ask import ask_question, AskSpec, Answer
+from ha_ask.errors import is_ok
+
+spec = AskSpec(
+    question="Proceed with the next step?",
+    answers=[
+        Answer("yes", ["yes", "affirmative"], title="Yes", slot_bindings={"proceed": True}),
+        Answer("no", ["no", "negative"], title="No", slot_bindings={"proceed": False}),
+    ],
+)
+
+res = ask_question(channel="terminal", spec=spec)
+
+if is_ok(res):
+    print(res["id"])       # canonical answer id ("yes"/"no")
+    print(res["sentence"]) # user typed input used for the selection
+    print(res["slots"])    # copied from selected answer.slot_bindings
+```
+
 ### Mobile (buttons)
 
 On mobile, the user can only pick from the buttons you provide, so you won’t get `no_match` there.
@@ -352,6 +400,16 @@ res = ask_question(channel="mobile", spec=spec, api_url=..., token=..., notify_a
 print(res["id"])            # "yes" or "no"
 print(res["meta"]["replies"])  # optional text replies
 ```
+
+---
+
+## Terminal-first delivery note
+
+This repository now includes terminal turn handling (freeform + typed multichoice)
+as the immediate feature delivery. The richer `interaction_contracts` seam work
+already landed separately in `DiscordTurnService` (commit
+`8ae1443dcf09f25b82c303d253076f2e1e52a24d`), but Ask has not yet taken the broader
+follow-up PR to consume that richer interaction model everywhere.
 
 ---
 
