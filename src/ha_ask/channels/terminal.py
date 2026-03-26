@@ -147,6 +147,28 @@ def _required_slots(slots: Sequence[SlotSpec]) -> list[SlotSpec]:
     return [slot for slot in slots if slot.required]
 
 
+def _merge_slot_values(
+    *,
+    slot_bindings: dict[str, object] | None = None,
+    collected_slots: dict[str, object] | None = None,
+) -> dict[str, object]:
+    merged: dict[str, object] = {}
+    if slot_bindings:
+        merged.update(slot_bindings)
+    if collected_slots:
+        merged.update(collected_slots)
+    return merged
+
+
+def _remaining_required_slots(
+    slots: Sequence[SlotSpec],
+    *,
+    satisfied_slots: dict[str, object] | None = None,
+) -> list[SlotSpec]:
+    satisfied_names = set((satisfied_slots or {}).keys())
+    return [slot for slot in _required_slots(slots) if slot.name not in satisfied_names]
+
+
 def _collect_slots(
     input_fn: Callable[[str], str],
     slots: Sequence[SlotSpec],
@@ -157,9 +179,8 @@ def _collect_slots(
     collected: dict[str, object] = dict(initial_slots or {})
     template_hint = _template_hint(template)
     showed_hint = False
-    for slot in _required_slots(slots):
-        if slot.name in collected:
-            continue
+
+    for slot in _remaining_required_slots(slots, satisfied_slots=collected):
         prompt = _slot_prompt(slot)
         if template_hint and not showed_hint:
             prompt = f"{template_hint}\n{prompt}"
@@ -167,7 +188,7 @@ def _collect_slots(
         raw = input_fn(prompt)
         if _is_cancel_input(raw):
             return collected, False
-        collected[slot.name] = raw
+        collected = _merge_slot_values(slot_bindings=collected, collected_slots={slot.name: raw})
     return collected, True
 
 
@@ -273,12 +294,13 @@ def ask_question(
             if choice_result["error"] is not None:
                 return choice_result
 
-            if _required_slots(interaction.slots):
+            selected_slot_bindings = _merge_slot_values(slot_bindings=choice_result["slots"])
+            if _remaining_required_slots(interaction.slots, satisfied_slots=selected_slot_bindings):
                 chosen_template = _pick_terminal_template(
                     interaction.templates,
                     interaction.slots,
                     answer_id=choice_result["id"],
-                    initial_slots=choice_result["slots"],
+                    initial_slots=selected_slot_bindings,
                 )
                 return _ask_slot_collection(
                     spec,
@@ -286,10 +308,11 @@ def ask_question(
                     input_fn,
                     answer_id=choice_result["id"],
                     sentence=None,
-                    initial_slots=choice_result["slots"],
+                    initial_slots=selected_slot_bindings,
                     template=chosen_template,
                 )
 
+            choice_result["slots"] = selected_slot_bindings
             return choice_result
 
         if _required_slots(interaction.slots):
