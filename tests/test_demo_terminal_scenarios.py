@@ -55,6 +55,7 @@ def test_explainer_output_is_informative() -> None:
     assert "Best for:" in output
     assert "Strength:" in output
     assert "Limitation:" in output
+    assert "If unsure, start with: 1. Ask an open question." in output
 
 
 def test_menu_keeps_scenario_keys_and_explainer_key_distinct(capsys) -> None:

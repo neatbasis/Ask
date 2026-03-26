@@ -244,6 +244,7 @@ def render_scenario_explainer(scenarios: list[Scenario]) -> str:
     lines.append("- Need unconstrained text? -> Ask an open question (1)")
     lines.append("- Think in sentence patterns? -> Try a sentence-style interaction (5)")
     lines.append("")
+    lines.append("If unsure, start with: 1. Ask an open question.")
     lines.append("Note: Sentence-style terminal behavior is best-effort on today's public API.")
     return "\n".join(lines)
 
@@ -273,10 +274,6 @@ def main() -> int:
             return 0
         if choice == EXPLAINER_MENU_KEY:
             print(render_scenario_explainer(list(scenarios.values())))
-            rec_key = recommend_scenario(prefers_open_text=True)
-            recommended = scenarios.get(rec_key)
-            if recommended is not None:
-                print(f"\nSuggested default if unsure: {recommended.key}. {recommended.label}")
             input("\nPress Enter to return to the menu...")
             continue
 
