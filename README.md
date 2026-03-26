@@ -352,7 +352,7 @@ print(res["sentence"]) # recognized utterance
 print(res["slots"])    # wildcard slots (if templates used)
 ```
 
-### Terminal (interactive multichoice + typed fallback)
+### Terminal (freeform + choice + stepwise slot collection)
 
 For multiple-choice questions, terminal now prefers an interactive picker in suitable TTYs:
 
@@ -393,6 +393,29 @@ if is_ok(res):
     print(res["slots"])    # copied from selected answer.slot_bindings
 ```
 
+For slot-collection style asks (`expected_slots`), terminal now prompts each
+missing required slot in order:
+
+```text
+Album: The White Album
+Artist: The Beatles
+```
+
+```python
+from ha_ask import ask_question, AskSpec
+
+spec = AskSpec(
+    question="What should we play?",
+    expected_slots=["album", "artist"],
+)
+
+res = ask_question(channel="terminal", spec=spec)
+
+print(res["id"])       # None (unless a choice step set it)
+print(res["sentence"]) # terminal text summary of collected values
+print(res["slots"])    # {"album": "...", "artist": "..."}
+```
+
 ### Mobile (buttons)
 
 On mobile, the user can only pick from the buttons you provide, so you won’t get `no_match` there.
@@ -416,11 +439,9 @@ print(res["meta"]["replies"])  # optional text replies
 
 ## Terminal-first delivery note
 
-This repository now includes terminal turn handling (freeform + typed multichoice)
-as the immediate feature delivery. The richer `interaction_contracts` seam work
-already landed separately in `DiscordTurnService` (commit
-`8ae1443dcf09f25b82c303d253076f2e1e52a24d`), but Ask has not yet taken the broader
-follow-up PR to consume that richer interaction model everywhere.
+This repository now includes terminal turn handling for freeform, choice
+(interactive + typed fallback), and deterministic stepwise required-slot
+collection.
 
 ---
 

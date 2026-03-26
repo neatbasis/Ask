@@ -168,3 +168,77 @@ def test_terminal_multichoice_interactive_unavailable_falls_back_to_typed() -> N
     )
 
     assert result["id"] == "yes"
+
+
+def test_terminal_slot_collection_prompts_required_slots_in_order() -> None:
+    spec = AskSpec(question="Tell me what to play", expected_slots=["album", "artist"])
+    prompts: list[str] = []
+
+    def _input(prompt: str) -> str:
+        prompts.append(prompt)
+        return ["The White Album", "The Beatles"][len(prompts) - 1]
+
+    result = terminal.ask_question(spec, input_fn=_input)
+
+    assert prompts == ["Album: ", "Artist: "]
+    assert result["id"] is None
+    assert result["slots"] == {"album": "The White Album", "artist": "The Beatles"}
+    assert result["meta"]["channel"] == "terminal"
+
+
+def test_terminal_slot_collection_cancel_token_returns_cancelled() -> None:
+    spec = AskSpec(question="Tell me what to play", expected_slots=["album", "artist"])
+
+    result = terminal.ask_question(spec, input_fn=_iter_input(["The White Album", "esc"]))
+
+    assert result["error"] == ERR_CANCELLED
+
+
+def test_terminal_slot_collection_keyboard_interrupt_returns_cancelled() -> None:
+    spec = AskSpec(question="Tell me what to play", expected_slots=["album", "artist"])
+
+    def _input(prompt: str) -> str:
+        if prompt == "Album: ":
+            return "The White Album"
+        raise KeyboardInterrupt()
+
+    result = terminal.ask_question(spec, input_fn=_input)
+
+    assert result["error"] == ERR_CANCELLED
+
+
+def test_terminal_choice_then_collects_remaining_required_slots() -> None:
+    spec = AskSpec(
+        question="What should we play?",
+        expected_slots=["album", "artist"],
+        answers=[
+            Answer(
+                id="white_album",
+                title="The White Album",
+                sentences=["white album"],
+                slot_bindings={"album": "The White Album"},
+            ),
+            Answer(
+                id="abbey_road",
+                title="Abbey Road",
+                sentences=["abbey road"],
+                slot_bindings={"album": "Abbey Road"},
+            ),
+        ],
+    )
+    prompts: list[str] = []
+
+    def _input(prompt: str) -> str:
+        prompts.append(prompt)
+        return ["1", "The Beatles"][len(prompts) - 1]
+
+    result = terminal.ask_question(
+        spec,
+        input_fn=_input,
+        prefer_interactive=False,
+    )
+
+    assert result["id"] == "white_album"
+    assert result["sentence"] == "1"
+    assert result["slots"] == {"album": "The White Album", "artist": "The Beatles"}
+    assert prompts[1] == "Artist: "
