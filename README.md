@@ -90,8 +90,8 @@ Primary usage is to construct `Config(...)` directly in code:
 from ha_ask.config import Config
 
 cfg = Config(
-    api_url="https://home.example.com",
-    token="YOUR_LONG_LIVED_TOKEN",
+    ha_api_url="https://home.example.com",
+    ha_api_token="YOUR_LONG_LIVED_TOKEN",
     notify_action="notify.mobile_app_sebastian_mobile",  # optional
     satellite_entity_id="assist_satellite.kitchen",  # optional
     discord_turn_service_url="http://discord-turn.local",  # optional, discord channel
@@ -103,7 +103,7 @@ For environment-backed deployments, use `Config.from_env()`:
 ```python
 from ha_ask.config import Config
 
-cfg = Config.from_env()
+cfg = Config.from_env()  # loads Home Assistant transport config
 ```
 
 ## Preferred API: configured `AskClient`
@@ -126,8 +126,8 @@ res = client.ask_question(
 
 The client defaults come from `Config`:
 
-* `api_url`
-* `token`
+* `ha_api_url` (preferred; legacy `api_url` is still accepted)
+* `ha_api_token` (preferred; legacy `token` is still accepted)
 * `notify_action`
 * `satellite_entity_id`
 * `discord_turn_service_url`
@@ -139,7 +139,8 @@ You can still override any of those per call when needed.
 Required:
 
 * `HA_API_URL` – base URL of Home Assistant (e.g. `https://home.example.com`)
-* `HA_API_SECRET` – Long-Lived Access Token
+* `HA_API_TOKEN` – preferred env var for Home Assistant long-lived access token
+* `HA_API_SECRET` – legacy alias still supported for compatibility
 
 Optional:
 
@@ -162,14 +163,14 @@ cfg = load_config()  # deprecated compatibility API
 from ha_ask.config import Config
 
 cfg = Config(
-    api_url="https://home.example.com",
-    token="YOUR_LONG_LIVED_TOKEN",
+    ha_api_url="https://home.example.com",
+    ha_api_token="YOUR_LONG_LIVED_TOKEN",
 )
 # or, for env-backed deployments:
 # cfg = Config.from_env()
 ```
 
-`load_config()` remains available as a deprecated compatibility wrapper. Prefer `Config(...)` for explicit configuration, or `Config.from_env()` when reading from environment variables.
+`load_config()` remains available as a deprecated compatibility wrapper. Prefer `Config(...)` for explicit configuration, or `Config.from_env()` when reading Home Assistant transport settings from environment variables.
 
 ## Demonstrate artifact generation (canonical demo)
 
@@ -180,7 +181,7 @@ This is the fastest way to generate the canonical demo artifact described in `do
 If you are using environment-backed config (`Config.from_env()`), set:
 
 - `HA_API_URL`
-- `HA_API_SECRET`
+- `HA_API_TOKEN` (preferred; `HA_API_SECRET` is still accepted)
 - `HA_NOTIFY_ACTION`
 
 ### Run this exact command
@@ -208,8 +209,8 @@ Open the JSON and verify key contract fields exist, for example:
 
 ### Troubleshooting
 
-- **Missing env vars**: export `HA_API_URL`, `HA_API_SECRET`, and (for mobile demos) `HA_NOTIFY_ACTION` before running demos that call Home Assistant.
-- **Auth/token issues**: regenerate the long-lived token and re-export `HA_API_SECRET` if Home Assistant returns 401/403.
+- **Missing env vars**: export `HA_API_URL`, `HA_API_TOKEN` (or legacy `HA_API_SECRET`), and (for mobile demos) `HA_NOTIFY_ACTION` before running demos that call Home Assistant.
+- **Auth/token issues**: regenerate the long-lived token and re-export `HA_API_TOKEN` (or legacy `HA_API_SECRET`) if Home Assistant returns 401/403.
 - **Notify service failures**: verify `HA_NOTIFY_ACTION` is a full Home Assistant action string such as `notify.mobile_app_sebastian_mobile`.
 
 ---
@@ -223,8 +224,8 @@ from ha_ask import AskClient, AskSpec, Answer
 from ha_ask.config import Config
 
 cfg = Config(
-    api_url="https://home.example.com",
-    token="YOUR_LONG_LIVED_TOKEN",
+    ha_api_url="https://home.example.com",
+    ha_api_token="YOUR_LONG_LIVED_TOKEN",
     notify_action="notify.mobile_app_my_phone",
     satellite_entity_id="assist_satellite.my_satellite",
     discord_turn_service_url="http://discord-turn.local",
@@ -334,8 +335,8 @@ spec = AskSpec(question="What should we do next?", answers=None, timeout_s=30)
 res = ask_question(
     channel="satellite",
     spec=spec,
-    api_url=cfg["api_url"],
-    token=cfg["token"],
+    api_url=cfg["ha_api_url"],
+    token=cfg["ha_api_token"],
     satellite_entity_id=cfg["satellite_entity_id"],
 )
 
@@ -366,8 +367,8 @@ spec = AskSpec(
 res = ask_question(
     channel="mobile",
     spec=spec,
-    api_url=cfg["api_url"],
-    token=cfg["token"],
+    api_url=cfg["ha_api_url"],
+    token=cfg["ha_api_token"],
     notify_action=cfg["notify_action"],
 )
 
