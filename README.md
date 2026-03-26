@@ -249,6 +249,8 @@ res = client.ask_question(
 
 ## Compatibility function API: `ask_question(...)`
 
+> **Compatibility API for migration only.** New code should prefer `AskClient(config)` and method calls.
+
 ```python
 from ask import ask_question, AskSpec, Answer
 
@@ -264,7 +266,7 @@ res = ask_question(
 )
 ```
 
-`ask_question(...)` and related module-level helpers (`ask_choice`, `ask_freeform`, async variants) remain available for compatibility. The preferred API for new code is `AskClient(config)` + method calls.
+`ask_question(...)` and related module-level helpers (`ask_choice`, `ask_freeform`, async variants) remain available as a transitional compatibility surface. For new code, prefer `AskClient(config)` + method calls.
 
 ### Parameters
 
@@ -311,142 +313,12 @@ res = ask_question(
 
 ---
 
-# Asking styles
+# Asking styles (capability-first)
 
-## 1) Free-form question (no answers)
-
-### Terminal (preferred import surface)
-
-```python
-from ask import AskClient, AskSpec, is_ok, is_cancelled
-from ask.config import Config
-
-client = AskClient(Config.from_env())
-spec = AskSpec(question="What should we do next?")
-res = client.ask_question(channel="terminal", spec=spec)
-
-if is_ok(res):
-    print("Typed text:", res["sentence"])
-elif is_cancelled(res):
-    print("User cancelled from terminal (Esc/esc/escape or Ctrl+C).")
-```
-
-### Satellite
-
-```python
-from ask import AskClient, AskSpec, is_ok
-from ask.config import Config
-
-client = AskClient(Config.from_env())
-
-spec = AskSpec(question="What should we do next?", answers=None, timeout_s=30)
-
-res = client.ask_question(
-    channel="satellite",
-    spec=spec,
-)
-
-if is_ok(res):
-    print("User said:", res["sentence"])   # id is typically None
-```
-
-### Mobile (reply-mode)
-
-Mobile needs a terminal “Done” action, so set `expect_reply=True`.
-
-```python
-from ask import AskClient, AskSpec, is_ok
-from ask.config import Config
-
-client = AskClient(Config.from_env())
-
-spec = AskSpec(
-    question="Tell me what you want next. Reply then press Done.",
-    answers=None,
-    expect_reply=True,
-    allow_replies=True,
-    timeout_s=120,
-    title="SemanticNG",
-)
-
-res = client.ask_question(
-    channel="mobile",
-    spec=spec,
-)
-
-if is_ok(res):
-    print("Last reply:", res["sentence"])
-    print("All replies:", res["meta"].get("replies", []))
-```
-
-Behavior:
-
-* user may send 0..N replies
-* “Done” ends the interaction
-* if no replies were sent, `sentence == ""` and `meta["replies"] == []`
-
----
-
-## 2) Multiple-choice classification (answers)
-
-This is the closest match to Assist Satellite’s native behavior.
-
-### Defining answers
-
-```python
-from ask import Answer
-
-answers = [
-    Answer("yes", ["yes", "yeah", "yep", "sure", "of course"], title="Yes"),
-    Answer("no",  ["no", "nope", "nah", "negative"],          title="No"),
-]
-```
-
-### Satellite (Assist-native)
-
-```python
-from ask import AskClient, AskSpec
-from ask.config import Config
-
-client = AskClient(Config.from_env())
-
-spec = AskSpec(
-    question="Proceed with the next step?",
-    answers=answers,
-    timeout_s=60,
-)
-
-res = client.ask_question(channel="satellite", spec=spec)
-
-print(res["id"])       # "yes" or "no" or None (if no match)
-print(res["sentence"]) # recognized utterance
-print(res["slots"])    # wildcard slots (if templates used)
-```
-
-### Terminal (freeform + choice + stepwise slot collection)
-
-For multiple-choice questions, terminal now prefers an interactive picker in suitable TTYs:
-
-```text
-Your mission, should you accept it, is to...
-
-> Accept Mission
-  Decline Mission
-  Defer Mission
-
-↑/↓ move • Enter select • Esc cancel
-```
-
-If interactive mode is unavailable, Ask falls back to typed matching with:
-
-* option number (`1`, `2`, ...)
-* answer id/key (`yes`, `no`, ...)
-* answer label/title (`Yes`, `No thanks`, ...)
-* answer sentence aliases (`affirmative`, `negative`, ...)
+## Preferred example (object API)
 
 ```python
 from ask import AskClient, AskSpec, Answer
-from ask import is_ok
 from ask.config import Config
 
 client = AskClient(Config.from_env())
@@ -454,107 +326,67 @@ client = AskClient(Config.from_env())
 spec = AskSpec(
     question="Proceed with the next step?",
     answers=[
-        Answer("yes", ["yes", "affirmative"], title="Yes", slot_bindings={"proceed": True}),
-        Answer("no", ["no", "negative"], title="No", slot_bindings={"proceed": False}),
+        Answer("yes", ["yes", "yeah", "affirmative"], title="Yes"),
+        Answer("no", ["no", "nope", "negative"], title="No"),
     ],
-)
-
-res = client.ask_question(channel="terminal", spec=spec)
-
-if is_ok(res):
-    print(res["id"])       # canonical answer id ("yes"/"no")
-    print(res["sentence"]) # interactive label, or raw typed fallback input
-    print(res["slots"])    # copied from selected answer.slot_bindings
-```
-
-For slot-collection style asks (`expected_slots`), terminal now prompts each
-missing required slot in order:
-
-```text
-Album: The White Album
-Artist: The Beatles
-```
-
-```python
-from ask import AskClient, AskSpec
-from ask.config import Config
-
-client = AskClient(Config.from_env())
-
-spec = AskSpec(
-    question="What should we play?",
-    expected_slots=["album", "artist"],
-)
-
-res = client.ask_question(channel="terminal", spec=spec)
-
-print(res["id"])       # None (unless a choice step set it)
-print(res["sentence"]) # terminal text summary of collected values
-print(res["slots"])    # {"album": "...", "artist": "..."}
-```
-
-If template metadata is available in Ask internals, terminal can include a compact
-template hint and render `sentence` from the template (for example,
-`play {album} by {artist}` -> `play The White Album by The Beatles`). If template
-rendering is not possible, terminal keeps deterministic fallback rendering.
-
-### Mobile (buttons)
-
-On mobile, the user can only pick from the buttons you provide, so you won’t get `no_match` there.
-
-```python
-from ask import AskClient, AskSpec
-from ask.config import Config
-
-client = AskClient(Config.from_env())
-
-spec = AskSpec(
-    question="Proceed with the next step?",
-    answers=answers,
-    allow_replies=True,   # allow textInput replies before choosing
-    timeout_s=300,
-    title="SemanticNG",
+    allow_replies=True,
+    timeout_s=120,
 )
 
 res = client.ask_question(channel="mobile", spec=spec)
-
-print(res["id"])            # "yes" or "no"
-print(res["meta"]["replies"])  # optional text replies
+print(res["id"], res["sentence"], res["slots"], res["meta"])
 ```
 
----
-
-## Terminal-first delivery note
-
-This repository now includes terminal turn handling for freeform, choice
-(interactive + typed fallback), and deterministic stepwise required-slot
-collection.
-
----
-
-## 3) Slot capture (Satellite only)
-
-Assist Satellite sentence templates can contain wildcards `{slots}`:
+## Compatibility example (migration only)
 
 ```python
-from ask import AskClient, AskSpec, Answer
-from ask.config import Config
+from ask import ask_question, AskSpec
 
-client = AskClient(Config.from_env())
-
-answers = [
-    Answer("play_album", ["play {album} by {artist}"], title="Play album"),
-]
-spec = AskSpec(question="What should I play?", answers=answers, timeout_s=60)
-
-res = client.ask_question(channel="satellite", spec=spec)
-
-if res["id"] == "play_album":
-    print("Album:", res["slots"].get("album"))
-    print("Artist:", res["slots"].get("artist"))
+res = ask_question(
+    channel="satellite",
+    spec=AskSpec(question="What should we do next?"),
+    api_url="https://home.example.com",   # compatibility name; prefer Config.ha_api_url
+    token="YOUR_LONG_LIVED_TOKEN",        # compatibility name; prefer Config.ha_api_token
+)
 ```
 
-Mobile cannot do speech-template slot capture; it only provides replies/buttons.
+## Capabilities by channel
+
+* **terminal**
+  * freeform input
+  * interactive multichoice picker in TTYs, with typed fallback
+  * deterministic required-slot prompting via `expected_slots`
+* **satellite**
+  * Home Assistant `assist_satellite.ask_question` semantics
+  * speech classification + wildcard slot capture (`{album}`, `{artist}`, etc.)
+  * `no_match` behavior when answers are provided but not matched
+* **mobile**
+  * actionable notifications (button-based classification)
+  * optional text replies before completion (`allow_replies=True`)
+  * reply-mode completion via “Done” when `expect_reply=True`
+* **discord**
+  * prompt routing via Discord turn service
+  * recipient targeting via `discord_action`
+
+## Capabilities by interaction type
+
+* **free-form ask (`answers=None`)**
+  * primary output in `sentence`
+  * `id` usually `None`
+* **multiple-choice classification (`answers=[...]`)**
+  * stable answer id in `id`
+  * normalized across channels where supported
+* **slot collection (`expected_slots=[...]`)**
+  * terminal stepwise collection for required fields
+* **template slot capture (`"play {album} by {artist}"`)**
+  * satellite wildcard capture into `slots`
+
+## Caveats / limits
+
+* Mobile does not perform speech-template wildcard extraction; use replies/buttons.
+* `slots` is semantic-only (captured/bound values), while transport/debug data belongs in `meta`.
+* `no_match` is relevant for satellite classification; mobile button flows enforce valid choices.
+* Compatibility names (`api_url`, `token`) are still accepted in helper functions, but preferred naming is `ha_api_url` / `ha_api_token` on `Config`.
 
 ---
 
