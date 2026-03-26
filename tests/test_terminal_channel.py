@@ -242,7 +242,66 @@ def test_terminal_choice_then_collects_remaining_required_slots() -> None:
     assert result["id"] == "white_album"
     assert result["sentence"] == "album=The White Album, artist=The Beatles"
     assert result["slots"] == {"album": "The White Album", "artist": "The Beatles"}
+    assert prompts == [
+        "What should we play?\n  1) The White Album\n  2) Abbey Road\nType option number, id, label/title, or alias: ",
+        "Artist: ",
+    ]
     assert prompts[1] == "Artist: "
+
+
+def test_terminal_choice_slot_bindings_do_not_reprompt_satisfied_required_slot() -> None:
+    spec = AskSpec(
+        question="What should we deploy?",
+        expected_slots=["action", "service", "version"],
+        answers=[
+            Answer(
+                id="deploy",
+                title="Deploy",
+                sentences=["deploy"],
+                slot_bindings={"action": "deploy"},
+            )
+        ],
+    )
+    prompts: list[str] = []
+
+    def _input(prompt: str) -> str:
+        prompts.append(prompt)
+        return ["1", "api", "2026.03.0"][len(prompts) - 1]
+
+    result = terminal.ask_question(spec, input_fn=_input, prefer_interactive=False)
+
+    assert result["id"] == "deploy"
+    assert result["slots"] == {"action": "deploy", "service": "api", "version": "2026.03.0"}
+    assert prompts == [
+        "What should we deploy?\n  1) Deploy\nType option number, id, label/title, or alias: ",
+        "Service: ",
+        "Version: ",
+    ]
+
+
+def test_terminal_choice_then_slot_collection_cancel_returns_cancelled() -> None:
+    spec = AskSpec(
+        question="What should we deploy?",
+        expected_slots=["action", "service", "version"],
+        answers=[
+            Answer(
+                id="deploy",
+                title="Deploy",
+                sentences=["deploy"],
+                slot_bindings={"action": "deploy"},
+            )
+        ],
+    )
+
+    result = terminal.ask_question(
+        spec,
+        input_fn=_iter_input(["1", "api", "esc"]),
+        prefer_interactive=False,
+    )
+
+    assert result["error"] == ERR_CANCELLED
+    assert result["id"] is None
+    assert result["slots"] == {}
 
 
 def test_terminal_slot_collection_shows_template_hint_and_renders_sentence(monkeypatch) -> None:
