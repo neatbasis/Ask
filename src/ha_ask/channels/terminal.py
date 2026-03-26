@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 
 from ..errors import ERR_CANCELLED
-from ..interaction_types import InteractionMode, ask_spec_to_interaction
+from ..interaction_types import InteractionMode, SlotSpec, ask_spec_to_interaction
 from ..types import Answer, AskResult, AskSpec
 from .terminal_ui import TerminalUIUnavailable, select_answer_interactive
 
@@ -83,6 +83,38 @@ def _ask_freeform(spec: AskSpec, input_fn: Callable[[str], str]) -> AskResult:
     return _ok_result(spec, answer_id=None, sentence=text, slots={})
 
 
+def _slot_prompt(slot: SlotSpec) -> str:
+    slot_name = slot.name.replace("_", " ").strip().title()
+    if slot.description:
+        return f"{slot_name} ({slot.description}): "
+    return f"{slot_name}: "
+
+
+def _required_slots(slots: Sequence[SlotSpec]) -> list[SlotSpec]:
+    return [slot for slot in slots if slot.required]
+
+
+def _collect_slots(
+    input_fn: Callable[[str], str],
+    slots: Sequence[SlotSpec],
+    *,
+    initial_slots: dict[str, object] | None = None,
+) -> tuple[dict[str, object], bool]:
+    collected: dict[str, object] = dict(initial_slots or {})
+    for slot in _required_slots(slots):
+        if slot.name in collected:
+            continue
+        raw = input_fn(_slot_prompt(slot))
+        if _is_cancel_input(raw):
+            return collected, False
+        collected[slot.name] = raw
+    return collected, True
+
+
+def _sentence_from_slots(slots: dict[str, object]) -> str:
+    return ", ".join(f"{key}={value}" for key, value in slots.items())
+
+
 def _ask_multichoice(
     spec: AskSpec,
     input_fn: Callable[[str], str],
@@ -128,6 +160,35 @@ def _ask_multichoice(
         )
 
 
+def _ask_slot_collection(
+    spec: AskSpec,
+    interaction_slots: Sequence[SlotSpec],
+    input_fn: Callable[[str], str],
+    *,
+    answer_id: str | None = None,
+    sentence: str | None = None,
+    initial_slots: dict[str, object] | None = None,
+) -> AskResult:
+    collected_slots, completed = _collect_slots(
+        input_fn,
+        interaction_slots,
+        initial_slots=initial_slots,
+    )
+    if not completed:
+        return _cancel_result(spec)
+
+    result_sentence = sentence
+    if result_sentence is None:
+        result_sentence = _sentence_from_slots(collected_slots)
+
+    return _ok_result(
+        spec,
+        answer_id=answer_id,
+        sentence=result_sentence,
+        slots=collected_slots,
+    )
+
+
 def ask_question(
     spec: AskSpec,
     input_fn: Callable[[str], str] = input,
@@ -139,13 +200,30 @@ def ask_question(
         interaction = ask_spec_to_interaction(spec)
 
         if interaction.mode == InteractionMode.CHOICE and interaction.choices:
-            return _ask_multichoice(
+            choice_result = _ask_multichoice(
                 spec,
                 input_fn,
                 interaction.choices,
                 interactive_selector=interactive_selector,
                 prefer_interactive=prefer_interactive,
             )
+            if choice_result["error"] is not None:
+                return choice_result
+
+            if _required_slots(interaction.slots):
+                return _ask_slot_collection(
+                    spec,
+                    interaction.slots,
+                    input_fn,
+                    answer_id=choice_result["id"],
+                    sentence=choice_result["sentence"],
+                    initial_slots=choice_result["slots"],
+                )
+
+            return choice_result
+
+        if _required_slots(interaction.slots):
+            return _ask_slot_collection(spec, interaction.slots, input_fn)
 
         # Terminal starts with a small subset of the richer model.
         # Other modes can be added incrementally without changing AskResult.
