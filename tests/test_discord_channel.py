@@ -1,24 +1,27 @@
 from __future__ import annotations
 
-from contextlib import contextmanager
+import json
 
 from ha_ask.channels import discord
 from ha_ask.errors import ERR_TIMEOUT
 from ha_ask.types import Answer, AskSpec
 
 
-class _DummyWS:
-    def __init__(self, events):
-        self._events = events
+class _DummyHTTPResponse:
+    def __init__(self, payload: dict):
+        self._payload = payload
 
-    @contextmanager
-    def listen_events(self, _event_type: str):
-        yield iter(self._events)
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+    def read(self):
+        return json.dumps(self._payload).encode("utf-8")
 
 
 def test_discord_choice_maps_answer_slot_bindings_to_slots(monkeypatch):
-    monkeypatch.setattr(discord, "call_service_no_response", lambda *args, **kwargs: (True, None))
-
     spec = AskSpec(
         question="Pick a mode",
         answers=[
@@ -32,53 +35,85 @@ def test_discord_choice_maps_answer_slot_bindings_to_slots(monkeypatch):
         allow_replies=True,
     )
 
-    tag = "discord-choice"
-    ws = _DummyWS([
-        {"data": {"tag": tag, "action": f"OPT_{tag}_quiet", "reply_text": "please"}},
-    ])
-    monkeypatch.setattr(discord.uuid, "uuid4", lambda: type("U", (), {"hex": tag})())
+    monkeypatch.setattr(
+        discord.request,
+        "urlopen",
+        lambda req, timeout: _DummyHTTPResponse(
+            {
+                "correlation_id": "c-1",
+                "status": "answered",
+                "response_text": "1",
+                "selected_choice_key": "quiet",
+                "user_id": 123,
+                "channel_id": 456,
+                "error": None,
+            }
+        ),
+    )
 
-    result = discord.ask_question(client=object(), ws=ws, spec=spec, notify_action="notify.discord")
+    result = discord.ask_question(
+        spec=spec,
+        service_url="http://discord-turn.local",
+        recipient="123:456",
+    )
 
     assert result["id"] == "quiet"
     assert result["slots"] == {"mode": "quiet", "volume": 10}
-    assert "slot_evidence" in result["meta"]
     assert result["meta"]["slot_evidence"]["mode"]["source"] == "answer.slot_bindings"
-    assert "slot_evidence" not in result["slots"]
 
 
-def test_discord_reply_mode_done_returns_last_reply(monkeypatch):
-    monkeypatch.setattr(discord, "call_service_no_response", lambda *args, **kwargs: (True, None))
-
-    tag = "discord-reply"
-    spec = AskSpec(question="Anything else?", answers=None, expect_reply=True, allow_replies=True)
-    ws = _DummyWS(
-        [
-            {"data": {"tag": tag, "action": f"REPLY_{tag}", "reply_text": "first"}},
-            {"data": {"tag": tag, "action": f"REPLY_{tag}", "reply_text": "second"}},
-            {"data": {"tag": tag, "action": f"DONE_{tag}"}},
-        ]
+def test_discord_freeform_uses_response_text(monkeypatch):
+    monkeypatch.setattr(
+        discord.request,
+        "urlopen",
+        lambda req, timeout: _DummyHTTPResponse(
+            {
+                "correlation_id": "c-2",
+                "status": "answered",
+                "response_text": "second",
+                "selected_choice_key": None,
+                "user_id": 123,
+                "channel_id": 123,
+                "error": None,
+            }
+        ),
     )
-    monkeypatch.setattr(discord.uuid, "uuid4", lambda: type("U", (), {"hex": tag})())
 
-    result = discord.ask_question(client=object(), ws=ws, spec=spec, notify_action="notify.discord")
+    spec = AskSpec(question="Anything else?", answers=None, expect_reply=True, allow_replies=True)
+    result = discord.ask_question(
+        spec=spec,
+        service_url="http://discord-turn.local",
+        recipient="123",
+    )
 
     assert result["id"] is None
     assert result["sentence"] == "second"
-    assert result["slots"] == {}
     assert result["meta"]["mode"] == "reply"
 
 
 def test_discord_timeout_returns_semantic_timeout(monkeypatch):
-    monkeypatch.setattr(discord, "call_service_no_response", lambda *args, **kwargs: (True, None))
+    monkeypatch.setattr(
+        discord.request,
+        "urlopen",
+        lambda req, timeout: _DummyHTTPResponse(
+            {
+                "correlation_id": "c-3",
+                "status": "timed_out",
+                "response_text": None,
+                "selected_choice_key": None,
+                "user_id": 123,
+                "channel_id": 123,
+                "error": None,
+            }
+        ),
+    )
 
-    tag = "discord-timeout"
-    monkeypatch.setattr(discord.uuid, "uuid4", lambda: type("U", (), {"hex": tag})())
-
-    spec = AskSpec(question="Will timeout", answers=None, expect_reply=True, timeout_s=-1.0)
-    ws = _DummyWS([{"data": {"tag": tag, "action": f"REPLY_{tag}", "reply_text": "late"}}])
-
-    result = discord.ask_question(client=object(), ws=ws, spec=spec, notify_action="notify.discord")
+    spec = AskSpec(question="Will timeout", answers=None, expect_reply=True, timeout_s=1.0)
+    result = discord.ask_question(
+        spec=spec,
+        service_url="http://discord-turn.local",
+        recipient="123",
+    )
 
     assert result["error"] == ERR_TIMEOUT
     assert result["meta"]["timed_out"] is True
