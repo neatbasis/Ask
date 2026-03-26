@@ -54,16 +54,18 @@ def ask_question(
             with Client(rest, token) as client, WebsocketClient(ws_url, token) as ws:
                 result = mobile_chan.ask_question(client, ws, spec, notify_action=notify_action)
     elif channel == "discord":
-        service = discord_action or notify_action
-        if not service:
+        recipient = discord_action or notify_action
+        if not recipient:
             result = {"id": None, "sentence": None, "slots": {}, "meta": {}, "error": "missing_discord_action"}
-        elif not api_url or not token:
-            result = _MISSING_HA_CREDS_RESULT.copy()
+        elif not api_url:
+            result = {"id": None, "sentence": None, "slots": {}, "meta": {}, "error": "missing_discord_turn_url"}
         else:
-            rest = normalize_rest_api_url(api_url)
-            ws_url = derive_ws_url(api_url)
-            with Client(rest, token) as client, WebsocketClient(ws_url, token) as ws:
-                result = discord_chan.ask_question(client, ws, spec, notify_action=service)
+            result = discord_chan.ask_question(
+                spec=spec,
+                service_url=api_url,
+                recipient=recipient,
+                bearer_token=token,
+            )
     else:
         result = {"id": None, "sentence": None, "slots": {}, "meta": {}, "error": f"unknown_channel:{channel}"}
 
