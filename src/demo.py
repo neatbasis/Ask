@@ -1,12 +1,14 @@
-from ask import AskClient, AskSpec
-from ask.config import Config
+from ha_ask import ask_question, AskSpec
+from ha_ask.config import Config
 
 cfg = Config.from_env()
-client = AskClient(cfg)
 spec = AskSpec(question="What's the magic word?", timeout_s=30)
 
-res = client.ask_question(
+res = ask_question(
     channel="satellite",
     spec=spec,
+    api_url=cfg.api_url,
+    token=cfg.token,
+    satellite_entity_id=cfg.satellite_entity_id,
 )
 print(res)
