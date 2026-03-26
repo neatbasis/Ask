@@ -1,7 +1,7 @@
 """Terminal-first Ask demo with a scenario menu.
 
 Run with:
-    PYTHONPATH=src python -m demo_terminal_scenarios
+    python -m ask.demo_terminal_scenarios
 """
 
 from __future__ import annotations

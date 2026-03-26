@@ -4,14 +4,14 @@ import importlib
 
 
 def test_demo_terminal_scenarios_importable() -> None:
-    module = importlib.import_module("demo_terminal_scenarios")
+    module = importlib.import_module("ask.demo_terminal_scenarios")
 
     assert module is not None
     assert callable(module.main)
 
 
 def test_demo_terminal_scenarios_contains_expected_menu_entries() -> None:
-    module = importlib.import_module("demo_terminal_scenarios")
+    module = importlib.import_module("ask.demo_terminal_scenarios")
 
     scenarios = module.build_scenarios()
 

@@ -76,7 +76,7 @@ python -m ask.reporting > artifacts/demo_report.json
 From the repository root, run the terminal-first scenario menu demo:
 
 ```bash
-PYTHONPATH=src python -m demo_terminal_scenarios
+python -m ask.demo_terminal_scenarios
 ```
 
 ### Validation contract
