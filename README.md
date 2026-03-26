@@ -117,7 +117,7 @@ Optional:
 
 * `HA_NOTIFY_ACTION` – full Home Assistant action string (e.g. `notify.mobile_app_sebastian_mobile`)
 * `HA_SATELLITE_ENTITY_ID` – default satellite entity id
-* `DISCORD_TURN_SERVICE_URL` – base URL for Discord turn service (discord channel)
+* `DISCORD_TURN_SERVICE_URL` – base URL for Discord turn service (`channel="discord"`)
 
 ### Migration note
 
@@ -196,11 +196,12 @@ from ha_ask import ask_question, AskSpec, Answer
 res = ask_question(
     channel="satellite",             # "terminal" | "satellite" | "mobile" | "discord"
     spec=AskSpec(...),
-    api_url="https://home.example.com",
+    api_url="https://home.example.com",                              # Home Assistant URL
     token="YOUR_LONG_LIVED_TOKEN",
     satellite_entity_id="assist_satellite.my_satellite",   # satellite only
-    notify_action="notify.mobile_app_my_phone",                  # mobile only
-    discord_turn_service_url="http://discord-turn.local",        # discord only (preferred)
+    notify_action="notify.mobile_app_my_phone",                    # mobile only
+    discord_action="123456789012345678:234567890123456789",        # discord recipient ref
+    discord_turn_service_url="http://discord-turn.local",          # DiscordTurnService URL
 )
 ```
 
@@ -213,10 +214,17 @@ res = ask_question(
   * `"mobile"`: sends actionable notification and listens for response events
   * `"discord"`: sends prompt via Discord turn service
 * `spec` (`AskSpec`): question + answers + behavior flags
-* `api_url`, `token`: Home Assistant REST base URL and long-lived token
+* `api_url`, `token`: Home Assistant REST base URL and long-lived token (`api_url` is not the Discord turn service URL)
 * `satellite_entity_id`: required for satellite unless you set `HA_SATELLITE_ENTITY_ID` or rely on your library default
-* `notify_action`: required for mobile unless you set `HA_NOTIFY_ACTION`
-* `discord_turn_service_url`: Discord Turn Service URL for `channel="discord"` (required for discord routing)
+* `notify_action`: Home Assistant action string used for mobile unless you set `HA_NOTIFY_ACTION`
+* `discord_action`: Discord recipient reference used only for `channel="discord"`; expected format:
+  * `"<user_id>"`
+  * `"<user_id>:<channel_id>"`
+  * `user_id` is the target Discord user snowflake and `channel_id` is an optional Discord DM channel snowflake
+  * if `channel_id` is omitted, the downstream Discord turn service may resolve or create the DM channel
+  * this is not a Home Assistant action string
+  * compatibility behavior: if `discord_action` is omitted, dispatch currently falls back to `notify_action`; prefer setting `discord_action` explicitly
+* `discord_turn_service_url`: base URL for DiscordTurnService used only for `channel="discord"` (required for Discord routing)
 
 ### Returns: `AskResult`
 

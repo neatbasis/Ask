@@ -33,6 +33,48 @@ def ask_question(
     discord_turn_service_url: Optional[str] = None,
     satellite_entity_id: Optional[str] = None,
 ) -> AskResult:
+    """Dispatch an AskSpec over the selected channel.
+
+    Args:
+        channel: Transport channel (`"terminal"`, `"satellite"`, `"mobile"`, or `"discord"`).
+        spec: Fully constructed ask specification.
+        api_url: Home Assistant base URL used by Home Assistant-backed channels.
+            This remains the Home Assistant URL, not a Discord service URL.
+        token: Home Assistant long-lived token. For Discord channel usage this is
+            passed through as an optional bearer token to the Discord turn service.
+        notify_action: Home Assistant action string used for mobile notifications.
+            For compatibility, Discord dispatch may also fall back to this value
+            when `discord_action` is not provided.
+        discord_action:
+            Discord recipient reference used only when `channel="discord"`.
+
+            Expected format:
+            - "<user_id>"
+            - "<user_id>:<channel_id>"
+
+            Where:
+            - `user_id` is the target Discord user snowflake
+            - `channel_id` is an optional Discord DM channel snowflake
+
+            If `channel_id` is omitted, the downstream Discord turn service may resolve
+            or create the DM channel for the user.
+
+            This is not a Home Assistant action string.
+
+            Current compatibility behavior:
+            if `discord_action` is not provided, dispatch may fall back to `notify_action`.
+            Prefer supplying `discord_action` explicitly for Discord usage.
+        discord_turn_service_url:
+            Base URL of the DiscordTurnService instance used when `channel="discord"`.
+
+            Example:
+            - "http://discord-turn.local"
+            - "https://discord-turn.example.com"
+
+            Required for Discord channel usage.
+        satellite_entity_id: Home Assistant Assist satellite entity for
+            `channel="satellite"`.
+    """
     result: AskResult
 
     if channel == "terminal":
@@ -85,6 +127,16 @@ async def ask_question_async(
     discord_turn_service_url: Optional[str] = None,
     satellite_entity_id: Optional[str] = None,
 ) -> AskResult:
+    """Async wrapper around :func:`ask_question` with identical parameters.
+
+    Discord-specific parameters:
+        - `discord_action`: Discord recipient reference for `channel="discord"`,
+          not a Home Assistant action string. Accepted format is `"<user_id>"` or
+          `"<user_id>:<channel_id>"`; if omitted, current compatibility behavior
+          falls back to `notify_action`.
+        - `discord_turn_service_url`: Base URL of the DiscordTurnService used for
+          `channel="discord"` and required for Discord channel usage.
+    """
     return await asyncio.to_thread(
         ask_question,
         channel=channel,
@@ -113,6 +165,17 @@ def ask_choice(
     timeout_s: float = 180.0,
     title: Optional[str] = None,
 ) -> AskResult:
+    """Ask a multiple-choice question by building an :class:`AskSpec`.
+
+    Parameter behavior mirrors :func:`ask_question`, including Discord routing:
+        - `discord_action` is a Discord recipient reference (`"<user_id>"` or
+          `"<user_id>:<channel_id>"`) used only with `channel="discord"`.
+          It is not a Home Assistant action string; compatibility fallback to
+          `notify_action` still applies when `discord_action` is omitted.
+        - `discord_turn_service_url` is the DiscordTurnService base URL used only
+          when `channel="discord"` and is required for Discord channel usage.
+        - `api_url` remains the Home Assistant URL.
+    """
     spec = AskSpec(
         question=question,
         answers=choices,
@@ -147,6 +210,12 @@ async def ask_choice_async(
     timeout_s: float = 180.0,
     title: Optional[str] = None,
 ) -> AskResult:
+    """Async wrapper around :func:`ask_choice` with identical parameters.
+
+    For `channel="discord"`, provide `discord_action` as a Discord recipient
+    reference (`"<user_id>"` or `"<user_id>:<channel_id>"`) and set
+    `discord_turn_service_url` to the DiscordTurnService base URL.
+    """
     return await asyncio.to_thread(
         ask_choice,
         channel=channel,
@@ -179,6 +248,16 @@ def ask_freeform(
     timeout_s: float = 180.0,
     title: Optional[str] = None,
 ) -> AskResult:
+    """Ask a free-form question by building an :class:`AskSpec`.
+
+    Parameter behavior mirrors :func:`ask_question`. In particular for Discord:
+        - `discord_action` is the Discord recipient reference (not a Home Assistant
+          action string), in format `"<user_id>"` or `"<user_id>:<channel_id>"`.
+          If omitted, current compatibility behavior may fall back to `notify_action`.
+        - `discord_turn_service_url` is the DiscordTurnService base URL required
+          when `channel="discord"`.
+        - `api_url` is still the Home Assistant URL.
+    """
     spec = AskSpec(
         question=question,
         expected_slots=expected_slots,
@@ -215,6 +294,13 @@ async def ask_freeform_async(
     timeout_s: float = 180.0,
     title: Optional[str] = None,
 ) -> AskResult:
+    """Async wrapper around :func:`ask_freeform` with identical parameters.
+
+    Discord channel usage expects:
+        - `discord_action` as a Discord recipient reference (`"<user_id>"` or
+          `"<user_id>:<channel_id>"`; falls back to `notify_action` for compatibility)
+        - `discord_turn_service_url` as the required DiscordTurnService base URL
+    """
     return await asyncio.to_thread(
         ask_freeform,
         channel=channel,
