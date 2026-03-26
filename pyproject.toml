@@ -35,8 +35,10 @@ Repository = "https://git.sebastianmaki.fi/sebastian/Ask"  # change to your Gite
 Issues = "https://git.sebastianmaki.fi/sebastian/Ask/issues"
 
 [project.scripts]
-ask-canonical-demo = "ask.canonical_demo:main"
-ha-ask-canonical-demo = "ha_ask.canonical_demo:main"
+ask-demo = "ask.demo:main"
+ha-ask-demo = "ha_ask.demo:main"
+ask-canonical-demo = "ask.canonical_demo:main"  # compatibility alias
+ha-ask-canonical-demo = "ha_ask.canonical_demo:main"  # compatibility alias
 
 
 [project.optional-dependencies]

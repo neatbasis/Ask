@@ -1,7 +1,7 @@
 from __future__ import annotations
 """Fixture-only report generator for tests and docs snapshots.
 
-Deprecated: for a real end-to-end demo run, use ``python -m ha_ask.canonical_demo``.
+Deprecated: for a real end-to-end demo run, use ``python -m ha_ask.demo``.
 """
 
 import argparse
@@ -78,7 +78,7 @@ _CANONICAL_PAYLOAD: DraftReportInput = {
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Generate canonical demo artifact JSON.")
+    parser = argparse.ArgumentParser(description="Generate demo artifact JSON from fixture payload.")
     parser.add_argument(
         "--output",
         default="artifacts/demo_report.json",
@@ -90,7 +90,7 @@ def _parse_args() -> argparse.Namespace:
 def main() -> int:
     warnings.warn(
         "ha_ask.demo_report uses a static fixture payload and is deprecated for runtime demos. "
-        "Use `python -m ha_ask.canonical_demo` to execute the real canonical flow.",
+        "Use `python -m ha_ask.demo` to execute the real supported flow.",
         DeprecationWarning,
         stacklevel=2,
     )
@@ -101,7 +101,7 @@ def main() -> int:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
-    print(f"Wrote canonical demo artifact to {output_path}")
+    print(f"Wrote demo artifact to {output_path}")
     return 0
 
 

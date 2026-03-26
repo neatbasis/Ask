@@ -27,8 +27,9 @@ from .finalize import finalize_schema
 from .reporting import build_draft_report
 
 from .schema_flow import run_schema_flow, SchemaFlowResult
-from .canonical_demo import load_demo_constants, run_canonical_demo
-from .demo import run_demo
+from .demo import load_demo_constants, run_demo
+
+run_canonical_demo = run_demo
 
 # Back-compat export during spec migration:
 # - Prefer `ChoiceSpec` / `FreeformSpec` in new code.
