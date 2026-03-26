@@ -12,6 +12,9 @@ from dataclasses import dataclass
 from ask import Answer, AskClient, AskSpec
 from ask.config import Config
 
+EXPLAINER_MENU_KEY = "6"
+EXIT_MENU_KEYS = {"7", "q", "quit", "exit"}
+
 
 @dataclass(frozen=True)
 class Scenario:
@@ -19,6 +22,15 @@ class Scenario:
     label: str
     run: Callable[[AskClient], dict]
     details: str
+    recommended_when: str
+    strengths: tuple[str, ...]
+    limitations: tuple[str, ...]
+    supports_open_text: bool
+    supports_stable_id: bool
+    supports_deterministic_slot_collection: bool
+    supports_sentence_style: bool
+    requires_known_fields: bool
+    supports_machine_actionability: bool
 
 
 def build_client() -> AskClient:
@@ -107,32 +119,133 @@ def scenario_template_aware_best_effort(client: AskClient) -> dict:
 
 def build_scenarios() -> list[Scenario]:
     return [
-        Scenario("1", "Free-form question", scenario_freeform, "Demonstrates free-form asking."),
         Scenario(
-            "2",
-            "Multiple-choice classification",
-            scenario_classification,
-            "Shows stable ids (approve/block) for downstream logic.",
+            key="1",
+            label="Ask an open question",
+            run=scenario_freeform,
+            details="Demonstrates unconstrained free-form asking.",
+            recommended_when="You want unconstrained text and do not need a stable downstream id.",
+            strengths=("Flexible, natural user input",),
+            limitations=("No guaranteed stable decision id for machine branching",),
+            supports_open_text=True,
+            supports_stable_id=False,
+            supports_deterministic_slot_collection=False,
+            supports_sentence_style=False,
+            requires_known_fields=False,
+            supports_machine_actionability=False,
         ),
         Scenario(
-            "3",
-            "Mission accept / decline / defer",
-            scenario_mission_choice,
-            "Shows typed and interactive terminal multichoice behavior.",
+            key="2",
+            label="Make a stable decision",
+            run=scenario_classification,
+            details="Returns stable decision ids (approve/block) for downstream logic.",
+            recommended_when="A downstream system needs a predictable key (id) from user intent.",
+            strengths=("Stable ids are machine-actionable", "Simple bounded choice set"),
+            limitations=("Less flexible than open text",),
+            supports_open_text=False,
+            supports_stable_id=True,
+            supports_deterministic_slot_collection=False,
+            supports_sentence_style=False,
+            requires_known_fields=False,
+            supports_machine_actionability=True,
         ),
         Scenario(
-            "4",
-            "Required-slot collection",
-            scenario_required_slots,
-            "Collects deterministic required slots: service + version.",
+            key="3",
+            label="Mission-style decision options (extended)",
+            run=scenario_mission_choice,
+            details="Shows typed and interactive terminal multichoice behavior with three outcomes.",
+            recommended_when="You want a richer decision set than binary classification.",
+            strengths=("Shows multi-option mission framing",),
+            limitations=("Still a bounded chooser, not open exploration",),
+            supports_open_text=False,
+            supports_stable_id=True,
+            supports_deterministic_slot_collection=False,
+            supports_sentence_style=False,
+            requires_known_fields=False,
+            supports_machine_actionability=True,
         ),
         Scenario(
-            "5",
-            "Template-aware terminal slot demo (best-effort)",
-            scenario_template_aware_best_effort,
-            "Uses public AskSpec slot collection with template-like sentence patterns.",
+            key="4",
+            label="Collect known missing details",
+            run=scenario_required_slots,
+            details="Collects deterministic required slots: service + version.",
+            recommended_when="Required fields are known in advance and deterministic completion matters.",
+            strengths=("Deterministic required-slot completion",),
+            limitations=("Requires known fields up front",),
+            supports_open_text=False,
+            supports_stable_id=False,
+            supports_deterministic_slot_collection=True,
+            supports_sentence_style=False,
+            requires_known_fields=True,
+            supports_machine_actionability=True,
+        ),
+        Scenario(
+            key="5",
+            label="Try a sentence-style interaction",
+            run=scenario_template_aware_best_effort,
+            details="Uses public AskSpec slot collection with template-like sentence patterns.",
+            recommended_when="You think in phrase patterns and want a template-like terminal interaction.",
+            strengths=("Phrase-oriented interaction feel",),
+            limitations=(
+                "Current terminal public API may still fall back to summary-style rendering",
+            ),
+            supports_open_text=False,
+            supports_stable_id=True,
+            supports_deterministic_slot_collection=True,
+            supports_sentence_style=True,
+            requires_known_fields=True,
+            supports_machine_actionability=True,
         ),
     ]
+
+
+def recommend_scenario(
+    *,
+    needs_stable_id: bool = False,
+    needs_deterministic_known_fields: bool = False,
+    prefers_open_text: bool = False,
+    prefers_sentence_style: bool = False,
+) -> str:
+    """Return the recommended scenario key for a simple need profile."""
+
+    if needs_stable_id:
+        return "2"
+    if needs_deterministic_known_fields:
+        return "4"
+    if prefers_sentence_style:
+        return "5"
+    if prefers_open_text:
+        return "1"
+    return "1"
+
+
+def render_scenario_explainer(scenarios: list[Scenario]) -> str:
+    lines: list[str] = []
+    lines.append("\nScenario quick guide")
+    lines.append("====================")
+    lines.append("Use these standards to choose intentionally:")
+    lines.append("- best for")
+    lines.append("- key strength")
+    lines.append("- key limitation")
+    lines.append("")
+
+    for scenario in scenarios:
+        if scenario.key == "3":
+            continue
+        lines.append(f"{scenario.key}. {scenario.label}")
+        lines.append(f"   Best for: {scenario.recommended_when}")
+        lines.append(f"   Strength: {scenario.strengths[0]}")
+        lines.append(f"   Limitation: {scenario.limitations[0]}")
+
+    lines.append("")
+    lines.append("Quick recommendations:")
+    lines.append("- Need a stable downstream key? -> Make a stable decision (2)")
+    lines.append("- Need deterministic known-field collection? -> Collect known missing details (4)")
+    lines.append("- Need unconstrained text? -> Ask an open question (1)")
+    lines.append("- Think in sentence patterns? -> Try a sentence-style interaction (5)")
+    lines.append("")
+    lines.append("Note: Sentence-style terminal behavior is best-effort on today's public API.")
+    return "\n".join(lines)
 
 
 def print_menu(scenarios: list[Scenario]) -> None:
@@ -140,7 +253,8 @@ def print_menu(scenarios: list[Scenario]) -> None:
     print("======================")
     for scenario in scenarios:
         print(f"{scenario.key}. {scenario.label}")
-    print("6. Exit")
+    print(f"{EXPLAINER_MENU_KEY}. I want to know more")
+    print("7. Exit")
 
 
 def main() -> int:
@@ -154,13 +268,21 @@ def main() -> int:
         print_menu(list(scenarios.values()))
         choice = input("Select a scenario: ").strip().lower()
 
-        if choice in {"6", "q", "quit", "exit"}:
+        if choice in EXIT_MENU_KEYS:
             print("Goodbye.")
             return 0
+        if choice == EXPLAINER_MENU_KEY:
+            print(render_scenario_explainer(list(scenarios.values())))
+            rec_key = recommend_scenario(prefers_open_text=True)
+            recommended = scenarios.get(rec_key)
+            if recommended is not None:
+                print(f"\nSuggested default if unsure: {recommended.key}. {recommended.label}")
+            input("\nPress Enter to return to the menu...")
+            continue
 
         selected = scenarios.get(choice)
         if selected is None:
-            print("Invalid selection. Choose 1-6.")
+            print("Invalid selection. Choose 1-7.")
             continue
 
         print(f"\nRunning: {selected.label}")
