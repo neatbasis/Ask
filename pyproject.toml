@@ -26,6 +26,7 @@ classifiers = [
 
 dependencies = [
   "homeassistant-api>=4.0.0",
+  "prompt_toolkit>=3.0.0",
   "typing-extensions>=4.0.0; python_version < '3.11'",
 ]
 

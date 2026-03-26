@@ -1,11 +1,15 @@
 from __future__ import annotations
 
-from typing import Callable, Sequence
+from collections.abc import Callable, Sequence
 
 from ..errors import ERR_CANCELLED
 from ..types import Answer, AskResult, AskSpec
+from .terminal_ui import TerminalUIUnavailable, select_answer_interactive
 
 _CANCEL_TOKENS = {"\x1b", "esc", "escape"}
+
+
+InteractiveSelector = Callable[[str, Sequence[Answer]], Answer | None]
 
 
 def _normalize_text(raw: str | None) -> str:
@@ -16,6 +20,10 @@ def _normalize_text(raw: str | None) -> str:
 
 def _is_cancel_input(raw: str | None) -> bool:
     return _normalize_text(raw) in _CANCEL_TOKENS
+
+
+def _label(answer: Answer) -> str:
+    return answer.title or answer.id
 
 
 def _cancel_result(spec: AskSpec) -> AskResult:
@@ -41,8 +49,7 @@ def _ok_result(spec: AskSpec, *, answer_id: str | None, sentence: str, slots: di
 def _render_choice_prompt(spec: AskSpec, answers: Sequence[Answer]) -> str:
     lines = [spec.question]
     for idx, answer in enumerate(answers, start=1):
-        label = answer.title or answer.id
-        lines.append(f"  {idx}) {label}")
+        lines.append(f"  {idx}) {_label(answer)}")
     lines.append("Type option number, id, label/title, or alias: ")
     return "\n".join(lines)
 
@@ -75,7 +82,28 @@ def _ask_freeform(spec: AskSpec, input_fn: Callable[[str], str]) -> AskResult:
     return _ok_result(spec, answer_id=None, sentence=text, slots={})
 
 
-def _ask_multichoice(spec: AskSpec, input_fn: Callable[[str], str], answers: Sequence[Answer]) -> AskResult:
+def _ask_multichoice(
+    spec: AskSpec,
+    input_fn: Callable[[str], str],
+    answers: Sequence[Answer],
+    *,
+    interactive_selector: InteractiveSelector = select_answer_interactive,
+    prefer_interactive: bool = True,
+) -> AskResult:
+    if prefer_interactive and input_fn is input:
+        try:
+            selected = interactive_selector(spec.question, answers)
+            if selected is None:
+                return _cancel_result(spec)
+            return _ok_result(
+                spec,
+                answer_id=selected.id,
+                sentence=_label(selected),
+                slots=dict(selected.slot_bindings or {}),
+            )
+        except TerminalUIUnavailable:
+            pass
+
     prompt = _render_choice_prompt(spec, answers)
     lookup = _build_choice_lookup(answers)
 
@@ -91,19 +119,30 @@ def _ask_multichoice(spec: AskSpec, input_fn: Callable[[str], str], answers: Seq
             continue
 
         answer = answers[matched_index]
-        sentence = raw
         return _ok_result(
             spec,
             answer_id=answer.id,
-            sentence=sentence,
+            sentence=raw,
             slots=dict(answer.slot_bindings or {}),
         )
 
 
-def ask_question(spec: AskSpec, input_fn: Callable[[str], str] = input) -> AskResult:
+def ask_question(
+    spec: AskSpec,
+    input_fn: Callable[[str], str] = input,
+    *,
+    interactive_selector: InteractiveSelector = select_answer_interactive,
+    prefer_interactive: bool = True,
+) -> AskResult:
     try:
         if spec.answers:
-            return _ask_multichoice(spec, input_fn, spec.answers)
+            return _ask_multichoice(
+                spec,
+                input_fn,
+                spec.answers,
+                interactive_selector=interactive_selector,
+                prefer_interactive=prefer_interactive,
+            )
         return _ask_freeform(spec, input_fn)
     except KeyboardInterrupt:
         return _cancel_result(spec)

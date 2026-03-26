@@ -1,9 +1,10 @@
-## `ha_ask` — Ask questions via Home Assistant (Satellite + Mobile)
+## `ha_ask` — Ask questions via Home Assistant (Satellite + Mobile + Terminal)
 
 `ha_ask` provides a single `ask_question()` function that can ask a question through different **channels**:
 
 * **satellite**: uses Home Assistant’s `assist_satellite.ask_question` service (speech → classified answer + slot capture)
 * **mobile**: uses actionable notifications + websocket events (buttons and/or free-form reply)
+* **terminal**: local terminal interaction with freeform input + interactive multichoice picker (with typed fallback)
 
 The return value is **Assist-compatible**: `id`, `sentence`, and `slots` follow the same semantics as `assist_satellite.ask_question`. Any transport/UI metadata is returned separately under `meta`.
 
@@ -191,7 +192,7 @@ Open the JSON and verify key contract fields exist, for example:
 from ha_ask import ask_question, AskSpec, Answer
 
 res = ask_question(
-    channel="satellite",             # "satellite" | "mobile"
+    channel="satellite",             # "terminal" | "satellite" | "mobile" | "discord"
     spec=AskSpec(...),
     api_url="https://home.example.com",
     token="YOUR_LONG_LIVED_TOKEN",
@@ -204,8 +205,10 @@ res = ask_question(
 
 * `channel`:
 
+  * `"terminal"`: local CLI/TTY ask flow (freeform + multichoice)
   * `"satellite"`: calls Home Assistant `assist_satellite.ask_question`
   * `"mobile"`: sends actionable notification and listens for response events
+  * `"discord"`: sends prompt via Discord turn service
 * `spec` (`AskSpec`): question + answers + behavior flags
 * `api_url`, `token`: Home Assistant REST base URL and long-lived token
 * `satellite_entity_id`: required for satellite unless you set `HA_SATELLITE_ENTITY_ID` or rely on your library default
@@ -349,13 +352,21 @@ print(res["sentence"]) # recognized utterance
 print(res["slots"])    # wildcard slots (if templates used)
 ```
 
-### Terminal (typed selection)
+### Terminal (interactive multichoice + typed fallback)
 
-Terminal now supports typed multiple-choice turns as a first-class ask path.
-When `answers` are supplied, Ask renders options and retries until the input resolves
-to a valid choice or cancellation.
+For multiple-choice questions, terminal now prefers an interactive picker in suitable TTYs:
 
-Supported typed selection forms:
+```text
+Your mission, should you accept it, is to...
+
+> Accept Mission
+  Decline Mission
+  Defer Mission
+
+↑/↓ move • Enter select • Esc cancel
+```
+
+If interactive mode is unavailable, Ask falls back to typed matching with:
 
 * option number (`1`, `2`, ...)
 * answer id/key (`yes`, `no`, ...)
@@ -378,7 +389,7 @@ res = ask_question(channel="terminal", spec=spec)
 
 if is_ok(res):
     print(res["id"])       # canonical answer id ("yes"/"no")
-    print(res["sentence"]) # user typed input used for the selection
+    print(res["sentence"]) # interactive label, or raw typed fallback input
     print(res["slots"])    # copied from selected answer.slot_bindings
 ```
 
