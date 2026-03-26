@@ -1,6 +1,6 @@
 ## `ha_ask` — Ask questions via Home Assistant (Satellite + Mobile + Terminal)
 
-`ha_ask` provides a single `ask_question()` function that can ask a question through different **channels**:
+`ha_ask` provides a configured object API (`AskClient`) and compatibility helper functions (`ask_question()`, etc.) that can ask through different **channels**:
 
 * **satellite**: uses Home Assistant’s `assist_satellite.ask_question` service (speech → classified answer + slot capture)
 * **mobile**: uses actionable notifications + websocket events (buttons and/or free-form reply)
@@ -106,6 +106,34 @@ from ha_ask.config import Config
 cfg = Config.from_env()
 ```
 
+## Preferred API: configured `AskClient`
+
+Use `Config` as your long-lived transport configuration and `AskClient` as your call surface:
+
+```python
+from ha_ask import AskClient, AskSpec
+from ha_ask.config import Config
+
+cfg = Config.from_env()
+client = AskClient(cfg)
+
+res = client.ask_question(
+    channel="discord",
+    spec=AskSpec(question="Deploy now?"),
+    discord_action="123456789012345678",  # Discord recipient reference
+)
+```
+
+The client defaults come from `Config`:
+
+* `api_url`
+* `token`
+* `notify_action`
+* `satellite_entity_id`
+* `discord_turn_service_url`
+
+You can still override any of those per call when needed.
+
 ### Environment variable reference (single source of truth)
 
 Required:
@@ -188,7 +216,28 @@ Open the JSON and verify key contract fields exist, for example:
 
 # Core API
 
-## `ask_question(...)`
+## Preferred object API
+
+```python
+from ha_ask import AskClient, AskSpec, Answer
+from ha_ask.config import Config
+
+cfg = Config(
+    api_url="https://home.example.com",
+    token="YOUR_LONG_LIVED_TOKEN",
+    notify_action="notify.mobile_app_my_phone",
+    satellite_entity_id="assist_satellite.my_satellite",
+    discord_turn_service_url="http://discord-turn.local",
+)
+client = AskClient(cfg)
+
+res = client.ask_question(
+    channel="satellite",
+    spec=AskSpec(...),
+)
+```
+
+## Compatibility function API: `ask_question(...)`
 
 ```python
 from ha_ask import ask_question, AskSpec, Answer
@@ -204,6 +253,8 @@ res = ask_question(
     discord_turn_service_url="http://discord-turn.local",          # DiscordTurnService URL
 )
 ```
+
+`ask_question(...)` and related module-level helpers (`ask_choice`, `ask_freeform`, async variants) remain available for compatibility. The preferred API for new code is `AskClient(config)` + method calls.
 
 ### Parameters
 
