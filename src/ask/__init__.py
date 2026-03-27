@@ -1,31 +1,25 @@
-"""Preferred public package surface for Ask.
+"""Canonical public package surface for Ask.
 
-`ask` is the forward-looking package identity.
+`ask` is the forward-looking package identity and implementation authority.
 `ha_ask` remains available as a compatibility shim.
 """
 
-from ha_ask import (
-    Answer,
-    AskClient,
-    AskSpec,
-    ChoiceSpec,
-    ERR_CANCELLED,
-    ERR_NO_MATCH,
-    ERR_NO_RESPONSE,
-    ERR_TIMEOUT,
-    FreeformSpec,
-    PlannedQuestion,
-    ProbeCandidate,
-    SchemaFlowResult,
+from .client import AskClient
+from .config import Config
+from .dispatch import (
     ask_choice,
     ask_choice_async,
     ask_freeform,
     ask_freeform_async,
     ask_question,
     ask_question_async,
-    build_draft_report,
+)
+from .errors import (
+    ERR_CANCELLED,
+    ERR_NO_MATCH,
+    ERR_NO_RESPONSE,
+    ERR_TIMEOUT,
     error_kind,
-    finalize_schema,
     is_cancelled,
     is_match,
     is_no_match,
@@ -33,14 +27,9 @@ from ha_ask import (
     is_ok,
     is_other_error,
     is_timeout,
-    load_demo_constants,
-    plan_questions,
-    run_canonical_demo,
-    run_demo,
-    run_schema_flow,
-    yes_no_spec,
 )
-from ha_ask.config import Config
+from .specs import yes_no_spec
+from .types import Answer, AskSpec, ChoiceSpec, FreeformSpec
 
 __all__ = [
     "AskClient",
@@ -68,14 +57,4 @@ __all__ = [
     "is_timeout",
     "is_cancelled",
     "is_other_error",
-    "PlannedQuestion",
-    "ProbeCandidate",
-    "plan_questions",
-    "finalize_schema",
-    "build_draft_report",
-    "run_schema_flow",
-    "SchemaFlowResult",
-    "load_demo_constants",
-    "run_demo",
-    "run_canonical_demo",
 ]

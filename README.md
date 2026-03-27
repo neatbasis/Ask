@@ -10,6 +10,8 @@ The return value is **Assist-compatible**: `id`, `sentence`, and `slots` follow 
 
 `ask` is the preferred package name for new code. `ha_ask` remains supported as a compatibility import path during migration.
 
+Sunset direction: `ask` is the canonical implementation and public API; `ha_ask` is compatibility-only. New code must import from `ask`.
+
 Compatibility imports continue to work (use only when migrating existing code):
 
 ```python
