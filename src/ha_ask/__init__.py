@@ -1,36 +1,60 @@
-"""Compatibility package for Ask.
+"""Backward-compatibility shim for the Ask package.
 
-Prefer importing from `ask` in new code.
-`ha_ask` remains supported as a migration shim.
+`ask` is the canonical package and implementation authority.
+`ha_ask` remains available only as a migration import path.
 """
 
-# ha_ask/__init__.py
-from .types import AskSpec, Answer, ChoiceSpec, FreeformSpec
-from .dispatch import (
+from ask import (
+    Answer,
+    AskClient,
+    AskSpec,
+    ChoiceSpec,
+    ERR_CANCELLED,
+    ERR_NO_MATCH,
+    ERR_NO_RESPONSE,
+    ERR_TIMEOUT,
+    FreeformSpec,
     ask_choice,
     ask_choice_async,
     ask_freeform,
     ask_freeform_async,
     ask_question,
     ask_question_async,
+    error_kind,
+    is_cancelled,
+    is_match,
+    is_no_match,
+    is_no_response,
+    is_ok,
+    is_other_error,
+    is_timeout,
+    yes_no_spec,
 )
-from .specs import yes_no_spec
-from .client import AskClient
-from .errors import (
-    ERR_NO_MATCH, ERR_NO_RESPONSE, ERR_TIMEOUT, ERR_CANCELLED,
-    error_kind, is_ok, is_match, is_no_match, is_no_response, is_timeout, is_cancelled, is_other_error
-)
-from .planning import PlannedQuestion, ProbeCandidate, plan_questions
-
-from .finalize import finalize_schema
-
-from .reporting import build_draft_report
-
-from .schema_flow import run_schema_flow, SchemaFlowResult
-from .demo import load_demo_constants, run_demo
-
-run_canonical_demo = run_demo
-
-# Back-compat export during spec migration:
-# - Prefer `ChoiceSpec` / `FreeformSpec` in new code.
-# - `AskSpec` remains supported for existing integrations.
+from ask.config import Config
+__all__ = [
+    "AskClient",
+    "ask_question",
+    "ask_choice",
+    "ask_freeform",
+    "ask_question_async",
+    "ask_choice_async",
+    "ask_freeform_async",
+    "AskSpec",
+    "ChoiceSpec",
+    "FreeformSpec",
+    "Answer",
+    "Config",
+    "yes_no_spec",
+    "ERR_NO_MATCH",
+    "ERR_NO_RESPONSE",
+    "ERR_TIMEOUT",
+    "ERR_CANCELLED",
+    "error_kind",
+    "is_ok",
+    "is_match",
+    "is_no_match",
+    "is_no_response",
+    "is_timeout",
+    "is_cancelled",
+    "is_other_error",
+]
