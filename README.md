@@ -8,6 +8,11 @@
 
 The return value is **Assist-compatible**: `id`, `sentence`, and `slots` follow the same semantics as `assist_satellite.ask_question`. Any transport/UI metadata is returned separately under `meta`.
 
+Ownership split (current):
+
+* Satellite output/input transport ownership is in the channel adapters (`ask.channels.satellite` / compatibility path `ha_ask.channels.satellite`).
+* Runtime orchestration ownership is in the dispatcher/client flow (`ask.dispatch` + `AskClient`), not a standalone runtime-loop module.
+
 `ask` is the preferred package name for new code. `ha_ask` remains supported as a compatibility import path during migration.
 
 Sunset direction: `ask` is the canonical implementation and public API; `ha_ask` is compatibility-only. New code must import from `ask`.
