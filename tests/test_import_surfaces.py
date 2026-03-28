@@ -1,6 +1,7 @@
 from ask import (
     Answer,
     AskClient,
+    AskResult,
     AskSpec,
     ChoiceSpec,
     Config,
@@ -20,6 +21,7 @@ def test_preferred_ask_surface_exports_stable_api():
     assert ChoiceSpec is not None
     assert FreeformSpec is not None
     assert Answer is not None
+    assert AskResult is not None
     assert ask_question is not None
     assert ask_choice is not None
     assert ask_freeform is not None

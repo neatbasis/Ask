@@ -29,7 +29,7 @@ from .errors import (
     is_timeout,
 )
 from .specs import yes_no_spec
-from .types import Answer, AskSpec, ChoiceSpec, FreeformSpec
+from .types import Answer, AskResult, AskSpec, ChoiceSpec, FreeformSpec
 
 __all__ = [
     "AskClient",
@@ -43,6 +43,7 @@ __all__ = [
     "ChoiceSpec",
     "FreeformSpec",
     "Answer",
+    "AskResult",
     "Config",
     "yes_no_spec",
     "ERR_NO_MATCH",
