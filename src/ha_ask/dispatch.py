@@ -1,22 +1,11 @@
-"""Compatibility dispatch shim.
+"""Compatibility module alias for :mod:`ask.dispatch`.
 
-Canonical dispatch helpers live in `ask.dispatch`.
+`ha_ask` remains a migration import path. This module is intentionally aliased
+to the canonical dispatch module so monkeypatch/import seams stay consistent
+with current authority ownership in `ask`.
 """
 
-from ask.dispatch import (
-    ask_choice,
-    ask_choice_async,
-    ask_freeform,
-    ask_freeform_async,
-    ask_question,
-    ask_question_async,
-)
+from ask import dispatch as _canonical_dispatch
+import sys
 
-__all__ = [
-    "ask_question",
-    "ask_question_async",
-    "ask_choice",
-    "ask_choice_async",
-    "ask_freeform",
-    "ask_freeform_async",
-]
+sys.modules[__name__] = _canonical_dispatch
