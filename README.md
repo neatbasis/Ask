@@ -90,6 +90,8 @@ python -m ask.demo_terminal_scenarios
 
 The terminal chooser now uses decision-oriented labels and includes an **"I want to know more"** explainer that summarizes strengths/limitations and recommendation hints for each interaction style.
 
+For an architecture-level map of public models, internal interaction models, and per-channel presentation behavior, see [`docs/terminal_demo_public_contract_assessment.md`](docs/terminal_demo_public_contract_assessment.md).
+
 ### Validation contract
 
 See the reference scenario definition in [`docs/demo_scenario.md`](docs/demo_scenario.md).
